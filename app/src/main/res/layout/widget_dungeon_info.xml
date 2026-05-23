@@ -2,41 +2,58 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#AA000000"
-    android:gravity="center_vertical"
-    android:orientation="horizontal"
-    android:padding="8dp">
+    android:background="#DD0A0A0C"
+    android:orientation="vertical"
+    android:padding="12dp">
 
-    <!-- Status Info (Floor, HP, etc.) -->
     <LinearLayout
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
         android:layout_weight="1"
+        android:gravity="center_vertical"
         android:orientation="vertical">
 
         <TextView
             android:id="@+id/tv_widget_title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Lost Dungeons"
-            android:textColor="#FFFFFF"
+            android:text="Lost Dungeons Engine"
+            android:textColor="#00E5FF"
+            android:textSize="16sp"
             android:textStyle="bold" />
 
         <TextView
             android:id="@+id/tv_widget_status"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Floor: 1 | HP: 100/100"
+            android:layout_marginTop="4dp"
+            android:text="Loading database state..."
             android:textColor="#DDDDDD"
-            android:textSize="12sp" />
+            android:textSize="14sp" />
     </LinearLayout>
 
-    <!-- Menu Button to launch UI Bridge -->
-    <Button
-        android:id="@+id/btn_widget_menu"
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Menu"
-        android:textSize="12sp" />
+        android:gravity="bottom|end"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btn_widget_menu"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            android:text="Command Menu"
+            android:textSize="12sp" />
+
+        <Button
+            android:id="@+id/btn_widget_launch"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Enter Dungeon"
+            android:backgroundTint="#00838F"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp" />
+    </LinearLayout>
 
 </LinearLayout>
