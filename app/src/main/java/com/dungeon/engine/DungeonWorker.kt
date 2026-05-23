@@ -1,12 +1,14 @@
 package com.dungeon.engine
 
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import androidx.room.Room
 import com.dungeon.database.GameDatabase
-import com.dungeon.database.entities.GameStateEntity
+import com.dungeon.widget.DungeonWidgetProvider
 
 class DungeonWorker(
     appContext: Context,
@@ -16,55 +18,63 @@ class DungeonWorker(
     override suspend fun doWork(): Result {
         Log.i("DungeonWorker", "Starting simulation tick.")
 
-        // 1. Initialize Database Access
-        // In a production environment, this should ideally be injected via a Dependency Injection 
-        // framework like Hilt, or accessed via a singleton in DungeonApplication.
-        val db = Room.databaseBuilder(
-            applicationContext,
-            GameDatabase::class.java, "dungeon-db"
-        ).build()
-
+        val db = GameDatabase.getDatabase(applicationContext)
         val dao = db.gameStateDao()
         
-        // 2. Fetch current state and time
-        var currentState = dao.getGameState()
+        val currentState = dao.getGameState()
+        val party = dao.getParty()
         val currentTime = System.currentTimeMillis()
 
-        if (currentState == null) {
-            // Initialize the database on the very first run
-            currentState = GameStateEntity(
-                lastSyncTimestamp = currentTime,
-                currentFloor = 1,
-                isSimulationActive = true
-            )
-            dao.updateGameState(currentState)
+        if (currentState == null || !currentState.isSimulationActive || party.isEmpty()) {
             return Result.success()
         }
 
-        if (!currentState.isSimulationActive) {
-            Log.i("DungeonWorker", "Simulation is currently paused by the user.")
-            return Result.success()
-        }
-
-        // 3. Trigger C++ Simulation logic
-        val controller = SimulationController()
-        val startTime = currentState.lastSyncTimestamp
+        val leadMember = party[0]
         
-        if (currentTime > startTime) {
-            // Execute the delta calculation
-            controller.executeTick(startTime, currentTime)
+        // Calculate delta time in seconds
+        val deltaMillis = currentTime - currentState.lastSyncTimestamp
+        val deltaSeconds = deltaMillis / 1000L
+
+        if (deltaSeconds > 0 && leadMember.currentHp > 0) {
+            val controller = SimulationController()
             
-            // 4. Update the state with the new timestamp
-            // Note: In an advanced implementation, your C++ engine would return a struct 
-            // containing the new floor and HP, or interact with SQLite directly. 
-            // For now, we update the timestamp to ensure the next tick calculates the next time delta.
-            val updatedState = currentState.copy(lastSyncTimestamp = currentTime)
-            dao.updateGameState(updatedState)
-            
-            // TODO: In the next phase, trigger a broadcast here to update the Widget UI
+            // 1. Pass Data to Native C++ Engine
+            val result = controller.executeTick(
+                deltaSeconds = deltaSeconds,
+                currentFloor = currentState.currentFloor,
+                currentHp = leadMember.currentHp,
+                attackStat = leadMember.attackStat
+            )
+
+            // 2. Update Database with Engine Results
+            dao.updateGameState(currentState.copy(
+                lastSyncTimestamp = currentTime,
+                currentFloor = result.finalFloor,
+                isSimulationActive = !result.partyDied // Pause sim if they died
+            ))
+
+            dao.updatePartyMember(leadMember.copy(
+                currentHp = result.finalHp
+            ))
+
+            // 3. Force the Widget to redraw with the new HP and Floor data
+            refreshWidget()
+        } else if (leadMember.currentHp <= 0) {
+             // Keep timestamp synced even if dead to avoid massive delta when revived
+             dao.updateGameState(currentState.copy(lastSyncTimestamp = currentTime, isSimulationActive = false))
+             refreshWidget()
         }
 
-        Log.i("DungeonWorker", "Simulation tick completed successfully.")
         return Result.success()
+    }
+
+    private fun refreshWidget() {
+        val intent = Intent(applicationContext, DungeonWidgetProvider::class.java)
+        intent.action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
+        val ids = AppWidgetManager.getInstance(applicationContext).getAppWidgetIds(
+            ComponentName(applicationContext, DungeonWidgetProvider::class.java)
+        )
+        intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
+        applicationContext.sendBroadcast(intent)
     }
 }
