@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#000000">
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="#1A1A1A">
+        
+        <SurfaceView
+            android:id="@+id/render_surface"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"/>
+
+        <TextView
+            android:id="@+id/tv_environment_info"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#88000000"
+            android:padding="8dp"
+            android:textColor="#FFFFFF"
+            android:text="Path: Mountains | Level: 1"/>
+            
+    </FrameLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="#222222"
+        android:padding="8dp">
+
+        <TextView
+            android:id="@+id/tv_combat_log"
+            android:layout_width="match_parent"
+            android:layout_height="60dp"
+            android:textColor="#00E5FF"
+            android:text="An enemy approaches..."
+            android:layout_marginBottom="8dp"/>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+            
+            <Button
+                android:id="@+id/btn_fight"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="FIGHT"
+                android:backgroundTint="#B71C1C"/>
+                
+            <Button
+                android:id="@+id/btn_magic"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="MAGIC"
+                android:backgroundTint="#0D47A1"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="4dp">
+            
+            <Button
+                android:id="@+id/btn_item"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="ITEM"
+                android:backgroundTint="#1B5E20"/>
+                
+            <Button
+                android:id="@+id/btn_run"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="RUN"
+                android:backgroundTint="#E65100"/>
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>
