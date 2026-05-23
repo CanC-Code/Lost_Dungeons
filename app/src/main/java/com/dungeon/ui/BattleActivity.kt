@@ -1,11 +1,16 @@
 package com.dungeon.ui
 
 import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
 import android.widget.Button
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.dungeon.R
 import com.dungeon.database.GameDatabase
 import com.dungeon.database.entities.PartyMemberEntity
@@ -24,14 +29,23 @@ class BattleActivity : AppCompatActivity() {
     
     // Evasion Window Timing
     private var evadeActiveUntil: Long = 0
-    private val evadeWindowMillis: Long = 1200 // 1.2 seconds to dodge successfully
+    private val evadeWindowMillis: Long = 1200 // 1.2 seconds to dodge
+    private var isEvadeOnCooldown = false
     
     // UI References
-    private lateinit var tvLog: TextView
+    private lateinit var rvLog: RecyclerView
     private lateinit var pbPlayerHp: ProgressBar
     private lateinit var tvPlayerHpText: TextView
     private lateinit var pbEnemyHp: ProgressBar
     private lateinit var tvEnemyName: TextView
+    
+    // Evade Button References
+    private lateinit var btnEvade: Button
+    private lateinit var pbEvadeTimer: ProgressBar
+
+    // Combat Log Data
+    private val combatLogs = mutableListOf<String>()
+    private lateinit var logAdapter: CombatLogAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -39,20 +53,30 @@ class BattleActivity : AppCompatActivity() {
 
         db = GameDatabase.getDatabase(this)
         
-        tvLog = findViewById(R.id.tv_combat_log)
+        rvLog = findViewById(R.id.rv_combat_log)
         pbPlayerHp = findViewById(R.id.pb_player_hp)
         tvPlayerHpText = findViewById(R.id.tv_player_hp_text)
         pbEnemyHp = findViewById(R.id.pb_enemy_hp)
         tvEnemyName = findViewById(R.id.tv_enemy_name)
+        
+        btnEvade = findViewById(R.id.btn_evade)
+        pbEvadeTimer = findViewById(R.id.pb_evade_timer)
 
-        val tvInfo = findViewById<TextView>(R.id.tv_environment_info)
+        val tvInfo = findViewById(R.id.tv_environment_info)
+
+        // Setup RecyclerView for Logs
+        logAdapter = CombatLogAdapter(combatLogs)
+        rvLog.layoutManager = LinearLayoutManager(this).apply {
+            stackFromEnd = true // Makes the list populate from the bottom up
+        }
+        rvLog.adapter = logAdapter
 
         // Setup Buttons
         findViewById<Button>(R.id.btn_fight).setOnClickListener { playerAttack(isMagic = false) }
         findViewById<Button>(R.id.btn_magic).setOnClickListener { playerAttack(isMagic = true) }
         findViewById<Button>(R.id.btn_item).setOnClickListener { logMsg("You have no items yet.") }
         findViewById<Button>(R.id.btn_run).setOnClickListener { attemptRun() }
-        findViewById<Button>(R.id.btn_evade).setOnClickListener { triggerEvade() }
+        btnEvade.setOnClickListener { triggerEvade() }
 
         // Load Hero and Start Battle Loop
         lifecycleScope.launch(Dispatchers.IO) {
@@ -84,13 +108,42 @@ class BattleActivity : AppCompatActivity() {
     }
 
     private fun logMsg(msg: String) {
-        tvLog.text = "> $msg"
+        combatLogs.add(msg)
+        logAdapter.notifyItemInserted(combatLogs.size - 1)
+        rvLog.scrollToPosition(combatLogs.size - 1)
     }
 
     private fun triggerEvade() {
-        if (!isBattleActive) return
+        if (!isBattleActive || isEvadeOnCooldown) return
+        
+        isEvadeOnCooldown = true
+        btnEvade.isEnabled = false
         evadeActiveUntil = System.currentTimeMillis() + evadeWindowMillis
         logMsg("You prepare to dodge! (Timing Window Active)")
+
+        pbEvadeTimer.visibility = View.VISIBLE
+        
+        lifecycleScope.launch {
+            val startTime = System.currentTimeMillis()
+            var elapsed = 0L
+            
+            // 1. Tick down the visual window
+            while (elapsed < evadeWindowMillis) {
+                elapsed = System.currentTimeMillis() - startTime
+                val progress = 100 - ((elapsed.toFloat() / evadeWindowMillis) * 100).toInt()
+                pbEvadeTimer.progress = progress
+                delay(16) // roughly 60fps
+            }
+            
+            pbEvadeTimer.visibility = View.INVISIBLE
+            logMsg("Evade stance ended. Recovering...")
+            
+            // 2. Cooldown phase
+            delay(2500)
+            btnEvade.isEnabled = true
+            isEvadeOnCooldown = false
+            logMsg("Evade is ready!")
+        }
     }
 
     private fun playerAttack(isMagic: Boolean) {
@@ -105,9 +158,7 @@ class BattleActivity : AppCompatActivity() {
         logMsg(if (isMagic) "You cast a spell for $damage DMG!" else "You strike for $damage DMG!")
         updateHpUI()
 
-        if (enemyHp <= 0) {
-            winBattle()
-        }
+        if (enemyHp <= 0) winBattle()
     }
 
     private fun attemptRun() {
@@ -127,14 +178,11 @@ class BattleActivity : AppCompatActivity() {
                 if (isBattleActive && activeHero != null) {
                     
                     val now = System.currentTimeMillis()
-                    // Check if player perfectly timed the Evade button
                     if (now <= evadeActiveUntil) {
                         logMsg("PERFECT DODGE! Negated enemy attack!")
                         trainEvasion()
                     } else {
-                        // Resolve hit
                         val hero = activeHero!!
-                        // Base chance to passively dodge based on trained evasion stat
                         val dodgeRoll = Random.nextInt(0, 100)
                         if (dodgeRoll < hero.evasionStat) {
                             logMsg("Your quick reflexes passively dodged the attack!")
@@ -161,7 +209,7 @@ class BattleActivity : AppCompatActivity() {
         activeHero?.let { hero ->
             val updatedHero = hero.copy(evasionStat = hero.evasionStat + 1)
             activeHero = updatedHero
-            logMsg("PERFECT DODGE! Evasion Stat increased to ${updatedHero.evasionStat}!")
+            logMsg("Evade leveled up! Evasion Stat is now ${updatedHero.evasionStat}!")
             saveHeroState()
         }
     }
@@ -191,5 +239,20 @@ class BattleActivity : AppCompatActivity() {
         logMsg("A wild ${tvEnemyName.text} appears!")
         isBattleActive = true
         updateHpUI()
+    }
+
+    // --- Inner Adapter Class for RecyclerView ---
+    inner class CombatLogAdapter(private val logs: List<String>) : RecyclerView.Adapter<CombatLogAdapter.ViewHolder>() {
+        inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+            val tvText: TextView = view.findViewById(R.id.tv_log_text)
+        }
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+            val view = LayoutInflater.from(parent.context).inflate(R.layout.item_combat_log, parent, false)
+            return ViewHolder(view)
+        }
+        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+            holder.tvText.text = "> ${logs[position]}"
+        }
+        override fun getItemCount() = logs.size
     }
 }
