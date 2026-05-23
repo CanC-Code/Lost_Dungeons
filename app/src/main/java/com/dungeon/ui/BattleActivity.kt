@@ -2,6 +2,8 @@ package com.dungeon.ui
 
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.SurfaceHolder
+import android.view.SurfaceView
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
@@ -14,6 +16,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.dungeon.R
 import com.dungeon.database.GameDatabase
 import com.dungeon.database.entities.PartyMemberEntity
+import com.dungeon.engine.SimulationController
 import kotlinx.coroutines.*
 import kotlin.random.Random
 
@@ -78,11 +81,26 @@ class BattleActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btn_run).setOnClickListener { attemptRun() }
         btnEvade.setOnClickListener { triggerEvade() }
 
-        // --- Initialize Native Asset Manager ---
-        // This links the Kotlin AssetManager to the C++ Engine for JSON parsing
-        val controller = com.dungeon.engine.SimulationController()
+        // --- NATIVE ENGINE INITIALIZATION ---
+        val controller = SimulationController()
+        
+        // 1. Give C++ access to the APK assets (JSONs, Shaders)
         controller.nativeInitAssetManager(assets)
-        // ---------------------------------------
+        
+        // 2. Wire the Android SurfaceView to the C++ OpenGL Renderer
+        val renderSurface = findViewById<SurfaceView>(R.id.render_surface)
+        renderSurface.holder.addCallback(object : SurfaceHolder.Callback {
+            override fun surfaceCreated(holder: SurfaceHolder) {
+                controller.nativeSurfaceCreated(holder.surface)
+            }
+            override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
+                controller.nativeSurfaceChanged(width, height)
+            }
+            override fun surfaceDestroyed(holder: SurfaceHolder) {
+                controller.nativeSurfaceDestroyed()
+            }
+        })
+        // ------------------------------------
 
         // Load Hero and Start Battle Loop
         lifecycleScope.launch(Dispatchers.IO) {
