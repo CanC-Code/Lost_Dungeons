@@ -5,8 +5,9 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "game_state")
 data class GameStateEntity(
-    @PrimaryKey val id: Int = 0, // Singleton state
+    @PrimaryKey val id: Int = 0,
     val lastSyncTimestamp: Long,
     val currentFloor: Int,
+    val currentBiome: String, // Forest, Mountains, Caves, Field
     val isSimulationActive: Boolean
 )
