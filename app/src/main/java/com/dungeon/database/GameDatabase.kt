@@ -12,7 +12,7 @@ import com.dungeon.database.entities.*
         PartyMemberEntity::class,
         InventoryItemEntity::class
     ],
-    version = 2, // Incremented to accommodate the new Biome and Class schema
+    version = 3, // BUMPED TO 3 FOR EVASION STAT
     exportSchema = false
 )
 abstract class GameDatabase : RoomDatabase() {
@@ -29,7 +29,7 @@ abstract class GameDatabase : RoomDatabase() {
                     GameDatabase::class.java,
                     "dungeon-db"
                 )
-                .fallbackToDestructiveMigration() // Safely clears the old v1 database layout
+                .fallbackToDestructiveMigration()
                 .build()
                 INSTANCE = instance
                 instance
