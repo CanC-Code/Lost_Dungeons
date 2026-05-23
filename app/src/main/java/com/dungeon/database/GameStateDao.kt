@@ -14,6 +14,10 @@ interface GameStateDao {
     @Query("SELECT * FROM party_members")
     fun getParty(): List<PartyMemberEntity>
 
+    // NEW: Required to create a character in an empty database
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    fun insertPartyMember(member: PartyMemberEntity)
+
     @Update
     fun updatePartyMember(member: PartyMemberEntity)
 
