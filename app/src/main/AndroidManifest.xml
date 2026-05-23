@@ -8,7 +8,15 @@
         android:label="Lost Dungeons"
         android:theme="@style/Theme.AppCompat.Light">
 
-        <!-- The Transparent UI Bridge Activity -->
+        <activity
+            android:name=".ui.MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
         <activity
             android:name=".ui.WidgetDialogActivity"
             android:theme="@style/Theme.Transparent.Dialog"
@@ -16,7 +24,6 @@
             android:excludeFromRecents="true"
             android:taskAffinity="" />
 
-        <!-- Registers the widget with the system -->
         <receiver
             android:name=".widget.DungeonWidgetProvider"
             android:exported="true">
