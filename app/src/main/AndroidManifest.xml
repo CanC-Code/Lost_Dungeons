@@ -9,13 +9,17 @@
         android:theme="@style/Theme.AppCompat.Light">
 
         <activity
-            android:name="com.dungeon.ui.MainActivity"
+            android:name="com.dungeon.ui.IntroActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name="com.dungeon.ui.BattleActivity"
+            android:exported="false" />
 
         <activity
             android:name="com.dungeon.ui.WidgetDialogActivity"
