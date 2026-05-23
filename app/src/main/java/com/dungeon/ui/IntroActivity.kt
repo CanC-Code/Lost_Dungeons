@@ -21,10 +21,8 @@ class IntroActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         val db = GameDatabase.getDatabase(this)
         
-        // Check if a character already exists; if so, skip intro and go to the Battle/Render view
         lifecycleScope.launch(Dispatchers.IO) {
             val state = db.gameStateDao().getGameState()
             if (state != null) {
@@ -48,11 +46,9 @@ class IntroActivity : AppCompatActivity() {
         val spinPath = findViewById<Spinner>(R.id.spin_path)
         val btnStart = findViewById<Button>(R.id.btn_start_journey)
 
-        // The 5 Required Classes
         val classes = arrayOf("Warrior (High HP/DEF)", "Mage (High MAG)", "Rogue (High ATK/SPD)", "Cleric (Healer)", "Ranger (Balanced)")
         spinClass.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, classes)
 
-        // The 4 Starting Paths
         val paths = arrayOf("Forest", "Mountains", "Caves", "Field")
         spinPath.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, paths)
 
@@ -62,10 +58,8 @@ class IntroActivity : AppCompatActivity() {
                 Toast.makeText(this, "Please enter a name", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-
-            val selectedClass = classes[spinClass.selectedItemPosition].split(" ")[0] // Extracts just the name
+            val selectedClass = classes[spinClass.selectedItemPosition].split(" ")[0]
             val selectedPath = paths[spinPath.selectedItemPosition]
-
             seedDatabaseAndStart(db, name, selectedClass, selectedPath)
         }
     }
@@ -74,26 +68,23 @@ class IntroActivity : AppCompatActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             val dao = db.gameStateDao()
             
-            // Generate base stats based on class choice
-            var hp = 100; var atk = 10; var mag = 10; var def = 10
+            var hp = 100; var atk = 10; var mag = 10; var def = 10; var eva = 5
             when (charClass) {
-                "Warrior" -> { hp = 150; atk = 15; def = 20 }
-                "Mage" -> { hp = 80; mag = 25; def = 5 }
-                "Rogue" -> { hp = 90; atk = 25; def = 10 }
-                "Cleric" -> { hp = 120; mag = 20; def = 15 }
-                "Ranger" -> { hp = 110; atk = 18; mag = 12; def = 12 }
+                "Warrior" -> { hp = 150; atk = 15; def = 20; eva = 2 }
+                "Mage" -> { hp = 80; mag = 25; def = 5; eva = 5 }
+                "Rogue" -> { hp = 90; atk = 25; def = 10; eva = 15 }
+                "Cleric" -> { hp = 120; mag = 20; def = 15; eva = 5 }
+                "Ranger" -> { hp = 110; atk = 18; mag = 12; def = 12; eva = 10 }
             }
 
             dao.updateGameState(GameStateEntity(
                 lastSyncTimestamp = System.currentTimeMillis(),
-                currentFloor = 1,
-                currentBiome = path,
-                isSimulationActive = true
+                currentFloor = 1, currentBiome = path, isSimulationActive = true
             ))
 
             dao.updatePartyMember(PartyMemberEntity(
                 name = name, characterClass = charClass, currentHp = hp, maxHp = hp,
-                attackStat = atk, magicStat = mag, defenseStat = def, isSelected = true
+                attackStat = atk, magicStat = mag, defenseStat = def, evasionStat = eva, isSelected = true
             ))
 
             withContext(Dispatchers.Main) {
