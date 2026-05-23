@@ -8,8 +8,26 @@
         android:icon="@mipmap/ic_launcher"
         android:label="Lost Dungeons"
         android:theme="@style/Theme.AppCompat.Light">
-        
-        <!-- Activity and Widget declarations will be added here later -->
-        
+
+        <!-- The Transparent UI Bridge Activity -->
+        <activity
+            android:name=".ui.WidgetDialogActivity"
+            android:theme="@style/Theme.Transparent.Dialog"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:taskAffinity="" />
+
+        <!-- Registers the widget with the system -->
+        <receiver
+            android:name=".widget.DungeonWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/dungeon_widget_info" />
+        </receiver>
+
     </application>
 </manifest>
