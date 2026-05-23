@@ -2,14 +2,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <application
-        android:name=".DungeonApplication"
+        android:name="com.dungeon.DungeonApplication"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
-        android:label="Lost Dungeons"
+        android:label="@string/app_name"
         android:theme="@style/Theme.AppCompat.Light">
 
         <activity
-            android:name=".ui.MainActivity"
+            android:name="com.dungeon.ui.MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -18,14 +18,14 @@
         </activity>
 
         <activity
-            android:name=".ui.WidgetDialogActivity"
+            android:name="com.dungeon.ui.WidgetDialogActivity"
             android:theme="@style/Theme.Transparent.Dialog"
             android:exported="false"
             android:excludeFromRecents="true"
             android:taskAffinity="" />
 
         <receiver
-            android:name=".widget.DungeonWidgetProvider"
+            android:name="com.dungeon.widget.DungeonWidgetProvider"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
