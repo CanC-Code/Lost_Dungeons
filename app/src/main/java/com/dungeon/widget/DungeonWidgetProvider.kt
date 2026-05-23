@@ -8,7 +8,7 @@ import android.content.Intent
 import android.widget.RemoteViews
 import com.dungeon.R
 import com.dungeon.database.GameDatabase
-import com.dungeon.ui.MainActivity
+import com.dungeon.ui.BattleActivity
 import com.dungeon.ui.WidgetDialogActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -44,8 +44,8 @@ class DungeonWidgetProvider : AppWidgetProvider() {
             )
             views.setOnClickPendingIntent(R.id.btn_widget_menu, menuPendingIntent)
 
-            // 2. Setup the Intent to live launch into the main game
-            val launchIntent = Intent(context, MainActivity::class.java)
+            // 2. Setup the Intent to live launch into the main game (Now BattleActivity)
+            val launchIntent = Intent(context, BattleActivity::class.java)
             val launchPendingIntent = PendingIntent.getActivity(
                 context,
                 1, // Use a different request code to distinguish from the menu intent
