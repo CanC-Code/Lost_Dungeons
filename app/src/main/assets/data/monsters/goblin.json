@@ -1,0 +1,9 @@
+{
+  "monster_id": "goblin",
+  "name": "Forest Goblin",
+  "base_hp": 45,
+  "attack": 8,
+  "defense": 3,
+  "evasion": 5,
+  "drops": ["goblin_ear", "rusty_dagger"]
+}
