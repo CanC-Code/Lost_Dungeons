@@ -23,24 +23,75 @@
             android:background="#88000000"
             android:padding="8dp"
             android:textColor="#FFFFFF"
+            android:textStyle="bold"
             android:text="Path: Mountains | Level: 1"/>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_gravity="center_horizontal|top"
+            android:layout_marginTop="50dp"
+            android:background="#AA000000"
+            android:padding="8dp">
             
+            <TextView
+                android:id="@+id/tv_enemy_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#FF5252"
+                android:textStyle="bold"
+                android:text="Wild Beast"/>
+            <ProgressBar
+                android:id="@+id/pb_enemy_hp"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="150dp"
+                android:layout_height="wrap_content"
+                android:progressTint="#FF5252"
+                android:max="100"
+                android:progress="100"/>
+        </LinearLayout>
     </FrameLayout>
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:background="#222222"
-        android:padding="8dp">
+        android:background="#1E1E24"
+        android:padding="12dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="8dp">
+            <TextView
+                android:id="@+id/tv_player_hp_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#00E5FF"
+                android:text="Hero HP: "
+                android:textStyle="bold"/>
+            <ProgressBar
+                android:id="@+id/pb_player_hp"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:progressTint="#00E5FF"
+                android:layout_gravity="center_vertical"
+                android:layout_marginStart="8dp"/>
+        </LinearLayout>
 
         <TextView
             android:id="@+id/tv_combat_log"
             android:layout_width="match_parent"
             android:layout_height="60dp"
-            android:textColor="#00E5FF"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
             android:text="An enemy approaches..."
-            android:layout_marginBottom="8dp"/>
+            android:background="#121212"
+            android:padding="6dp"
+            android:layout_marginBottom="12dp"/>
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -50,38 +101,51 @@
             <Button
                 android:id="@+id/btn_fight"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="55dp"
                 android:layout_weight="1"
                 android:text="FIGHT"
-                android:backgroundTint="#B71C1C"/>
+                android:backgroundTint="#B71C1C"
+                android:layout_marginEnd="4dp"/>
                 
             <Button
                 android:id="@+id/btn_magic"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="55dp"
                 android:layout_weight="1"
                 android:text="MAGIC"
-                android:backgroundTint="#0D47A1"/>
+                android:backgroundTint="#0D47A1"
+                android:layout_marginEnd="4dp"/>
+
+            <Button
+                android:id="@+id/btn_evade"
+                android:layout_width="0dp"
+                android:layout_height="55dp"
+                android:layout_weight="1"
+                android:text="EVADE!"
+                android:backgroundTint="#F57F17"
+                android:textColor="#000000"
+                android:textStyle="bold"/>
         </LinearLayout>
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:layout_marginTop="4dp">
+            android:layout_marginTop="8dp">
             
             <Button
                 android:id="@+id/btn_item"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="55dp"
                 android:layout_weight="1"
                 android:text="ITEM"
-                android:backgroundTint="#1B5E20"/>
+                android:backgroundTint="#1B5E20"
+                android:layout_marginEnd="4dp"/>
                 
             <Button
                 android:id="@+id/btn_run"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="55dp"
                 android:layout_weight="1"
                 android:text="RUN"
                 android:backgroundTint="#E65100"/>
