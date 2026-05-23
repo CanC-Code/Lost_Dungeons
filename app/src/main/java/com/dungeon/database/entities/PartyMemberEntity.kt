@@ -7,11 +7,12 @@ import androidx.room.PrimaryKey
 data class PartyMemberEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val name: String,
-    val characterClass: String, // Warrior, Mage, Rogue, Cleric, Ranger
+    val characterClass: String,
     val currentHp: Int,
     val maxHp: Int,
     val attackStat: Int,
     val magicStat: Int,
     val defenseStat: Int,
+    val evasionStat: Int, // NEW: Trainable live-action stat
     val isSelected: Boolean
 )
