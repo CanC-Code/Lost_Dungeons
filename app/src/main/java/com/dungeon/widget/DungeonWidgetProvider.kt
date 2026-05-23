@@ -8,7 +8,7 @@ import android.content.Intent
 import android.widget.RemoteViews
 import com.dungeon.R
 import com.dungeon.database.GameDatabase
-import com.dungeon.ui.BattleActivity
+import com.dungeon.ui.IntroActivity
 import com.dungeon.ui.WidgetDialogActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -41,7 +41,8 @@ class DungeonWidgetProvider : AppWidgetProvider() {
             )
             views.setOnClickPendingIntent(R.id.btn_widget_menu, menuPendingIntent)
 
-            val launchIntent = Intent(context, BattleActivity::class.java)
+            // FIX: Route through IntroActivity to ensure safe loading
+            val launchIntent = Intent(context, IntroActivity::class.java)
             val launchPendingIntent = PendingIntent.getActivity(
                 context, 1, launchIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
