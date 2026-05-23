@@ -78,6 +78,12 @@ class BattleActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btn_run).setOnClickListener { attemptRun() }
         btnEvade.setOnClickListener { triggerEvade() }
 
+        // --- Initialize Native Asset Manager ---
+        // This links the Kotlin AssetManager to the C++ Engine for JSON parsing
+        val controller = com.dungeon.engine.SimulationController()
+        controller.nativeInitAssetManager(assets)
+        // ---------------------------------------
+
         // Load Hero and Start Battle Loop
         lifecycleScope.launch(Dispatchers.IO) {
             val state = db.gameStateDao().getGameState()
