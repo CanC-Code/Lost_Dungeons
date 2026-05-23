@@ -1,5 +1,7 @@
 package com.dungeon.engine
 
+import android.content.res.AssetManager
+
 class SimulationController {
 
     companion object {
@@ -8,10 +10,12 @@ class SimulationController {
         }
     }
 
-    // Updated external signature mapping to JNI
+    // Phase 0: Idle math execution
     external fun nativeRunSimulation(deltaSeconds: Long, floor: Int, hp: Int, attack: Int): IntArray
+    
+    // Phase 2: Hand over the Android AssetManager to C++
+    external fun nativeInitAssetManager(assetManager: AssetManager)
 
-    // Wrapper function to make calling it from the Worker cleaner
     fun executeTick(deltaSeconds: Long, currentFloor: Int, currentHp: Int, attackStat: Int): SimulationResultData {
         val rawResult = nativeRunSimulation(deltaSeconds, currentFloor, currentHp, attackStat)
         return SimulationResultData(
@@ -23,7 +27,6 @@ class SimulationController {
     }
 }
 
-// Data class to hold the parsed JNI return values
 data class SimulationResultData(
     val finalFloor: Int,
     val finalHp: Int,
