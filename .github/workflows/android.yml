@@ -13,7 +13,6 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-
     - name: Install requirements 
       run: sudo apt-get update && sudo apt-get install -y imagemagick
 
@@ -26,8 +25,11 @@ jobs:
     - name: Make custom scripts executable
       run: chmod +x scripts/*.sh
 
-    - name: run scripts
-      run: ./scripts/*.sh
+    - name: Setup Gradle Wrapper
+      run: ./scripts/setup_gradle.sh
+
+    - name: Generate Android Icons
+      run: ./scripts/generate_icons.sh
 
     - name: Build with Gradle
       run: ./gradlew assembleDebug
