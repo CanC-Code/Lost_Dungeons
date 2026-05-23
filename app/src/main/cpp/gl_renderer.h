@@ -3,6 +3,7 @@
 
 #include <android/native_window.h>
 #include <EGL/egl.h>
+#include <EGL/eglext.h> // ADDED: Required for EGL_OPENGL_ES3_BIT_KHR
 #include <GLES3/gl3.h>
 #include <thread>
 #include <atomic>
