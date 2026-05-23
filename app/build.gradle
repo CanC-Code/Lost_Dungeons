@@ -35,6 +35,17 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
+
+    // Force the Java compiler to use Java 17
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    // Force the Kotlin compiler to use Java 17
+    kotlinOptions {
+        jvmTarget = '17'
+    }
 }
 
 dependencies {
