@@ -2,9 +2,9 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#DD0A0A0C"
+    android:background="#F2121212"
     android:orientation="vertical"
-    android:padding="12dp">
+    android:padding="16dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -23,12 +23,22 @@
             android:textStyle="bold" />
 
         <TextView
-            android:id="@+id/tv_widget_status"
+            android:id="@+id/tv_widget_hero"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
+            android:text="Awaiting Hero..."
+            android:textColor="#FFFFFF"
+            android:textSize="15sp"
+            android:textStyle="bold"/>
+
+        <TextView
+            android:id="@+id/tv_widget_status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
             android:text="Loading database state..."
-            android:textColor="#DDDDDD"
+            android:textColor="#BBBBBB"
             android:textSize="14sp" />
     </LinearLayout>
 
@@ -43,7 +53,9 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginEnd="8dp"
-            android:text="Command Menu"
+            android:text="Menu"
+            android:backgroundTint="#424242"
+            android:textColor="#FFFFFF"
             android:textSize="12sp" />
 
         <Button
@@ -55,5 +67,4 @@
             android:textColor="#FFFFFF"
             android:textSize="12sp" />
     </LinearLayout>
-
 </LinearLayout>
