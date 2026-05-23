@@ -14,11 +14,12 @@ mkdir -p "$RES_DIR/mipmap-xxhdpi"
 mkdir -p "$RES_DIR/mipmap-xxxhdpi"
 
 # Generate a high-resolution base icon (512x512)
-# Design: Dark cavern gradient background with a glowing teal crystal/portal shape
-convert -size 512x512 radial-gradient:"#2C3E50"-"#05050A" \
-  -fill "#1ABC9C" -draw "polygon 256,120 160,420 352,420" \
-  -fill "#16A085" -draw "polygon 256,180 190,420 322,420" \
-  -fill "#0E6655" -draw "polygon 256,250 220,420 292,420" \
+# Design: Dark stone background, deep black cave entrance, glowing teal stalagmites
+convert -size 512x512 radial-gradient:"#303030"-"#101010" \
+  -fill "#050505" -draw "ellipse 256,350 200,280 0,360" \
+  -fill "#00E5FF" -draw "polygon 256,150 220,400 292,400" \
+  -fill "#00B8D4" -draw "polygon 256,220 160,420 230,420" \
+  -fill "#0091EA" -draw "polygon 256,260 280,420 360,420" \
   base_icon.png
 
 echo "Base icon generated. Resizing for Android densities..."
