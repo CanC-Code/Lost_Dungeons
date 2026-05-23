@@ -25,7 +25,10 @@ class IntroActivity : AppCompatActivity() {
         
         lifecycleScope.launch(Dispatchers.IO) {
             val state = db.gameStateDao().getGameState()
-            if (state != null) {
+            val party = db.gameStateDao().getParty()
+            
+            // Ensure both state and party exist before skipping intro
+            if (state != null && party.isNotEmpty()) {
                 withContext(Dispatchers.Main) {
                     startActivity(Intent(this@IntroActivity, BattleActivity::class.java))
                     finish()
@@ -82,7 +85,8 @@ class IntroActivity : AppCompatActivity() {
                 currentFloor = 1, currentBiome = path, isSimulationActive = true
             ))
 
-            dao.updatePartyMember(PartyMemberEntity(
+            // FIX: Use insertPartyMember instead of updatePartyMember
+            dao.insertPartyMember(PartyMemberEntity(
                 name = name, characterClass = charClass, currentHp = hp, maxHp = hp,
                 attackStat = atk, magicStat = mag, defenseStat = def, evasionStat = eva, isSelected = true
             ))
