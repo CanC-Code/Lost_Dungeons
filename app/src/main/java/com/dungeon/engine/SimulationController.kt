@@ -11,13 +11,18 @@ class SimulationController {
         }
     }
 
+    // Phase 0: Idle math execution
     external fun nativeRunSimulation(deltaSeconds: Long, floor: Int, hp: Int, attack: Int): IntArray
+    
+    // Phase 2: Asset Management
     external fun nativeInitAssetManager(assetManager: AssetManager)
+    
+    // Phase 3: OpenGL Surface Pipeline
     external fun nativeSurfaceCreated(surface: Surface)
     external fun nativeSurfaceChanged(width: Int, height: Int)
     external fun nativeSurfaceDestroyed()
 
-    // NEW: Phase 4
+    // Phase 4: State and Camera Controls
     external fun nativeSetGameState(state: Int, entityId: String)
     external fun nativeMoveCamera(dx: Float, dz: Float)
 
@@ -31,3 +36,11 @@ class SimulationController {
         )
     }
 }
+
+// RESTORED: Required for the executeTick return type
+data class SimulationResultData(
+    val finalFloor: Int,
+    val finalHp: Int,
+    val enemiesDefeated: Int,
+    val partyDied: Boolean
+)
