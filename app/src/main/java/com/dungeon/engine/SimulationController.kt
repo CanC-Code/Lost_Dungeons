@@ -11,16 +11,15 @@ class SimulationController {
         }
     }
 
-    // Phase 0: Idle math execution
     external fun nativeRunSimulation(deltaSeconds: Long, floor: Int, hp: Int, attack: Int): IntArray
-    
-    // Phase 2: Asset Management
     external fun nativeInitAssetManager(assetManager: AssetManager)
-    
-    // Phase 3: OpenGL Surface Pipeline
     external fun nativeSurfaceCreated(surface: Surface)
     external fun nativeSurfaceChanged(width: Int, height: Int)
     external fun nativeSurfaceDestroyed()
+
+    // NEW: Phase 4
+    external fun nativeSetGameState(state: Int, entityId: String)
+    external fun nativeMoveCamera(dx: Float, dz: Float)
 
     fun executeTick(deltaSeconds: Long, currentFloor: Int, currentHp: Int, attackStat: Int): SimulationResultData {
         val rawResult = nativeRunSimulation(deltaSeconds, currentFloor, currentHp, attackStat)
@@ -32,10 +31,3 @@ class SimulationController {
         )
     }
 }
-
-data class SimulationResultData(
-    val finalFloor: Int,
-    val finalHp: Int,
-    val enemiesDefeated: Int,
-    val partyDied: Boolean
-)
