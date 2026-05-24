@@ -24,7 +24,7 @@ namespace LostDungeons {
         static void stop();
         static void setViewport(int width, int height);
         static void setGameState(int state, const std::string& entityId);
-        static void moveCamera(float dx, float dz);
+        static void updateInput(float moveX, float moveY, float lookX, float lookY);
 
     private:
         static std::atomic<bool> isRendering;
@@ -37,13 +37,19 @@ namespace LostDungeons {
         static GLuint shaderProgram;
         
         // Shader Uniforms
-        static GLint mvpLoc, modelLoc, timeLoc;
+        static GLint mvpLoc, modelLoc, timeLoc, camPosLoc;
         static GLint lightDirLoc, lightColLoc, ambColLoc, skyTopLoc, skyBotLoc;
 
         static int width;
         static int height;
 
+        // FPS Camera State
         static glm::vec3 cameraPos;
+        static glm::vec3 cameraFront;
+        static glm::vec3 cameraUp;
+        static float yaw;
+        static float pitch;
+
         static RenderState currentState;
         static std::string activeEntity;
         
