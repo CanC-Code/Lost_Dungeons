@@ -15,13 +15,19 @@ namespace LostDungeons {
     GLuint GLRenderer::shaderProgram = 0;
     
     GLint GLRenderer::mvpLoc = -1, GLRenderer::modelLoc = -1, GLRenderer::timeLoc = -1;
-    GLint GLRenderer::lightDirLoc = -1, GLRenderer::lightColLoc = -1, GLRenderer::ambColLoc = -1;
-    GLint GLRenderer::skyTopLoc = -1, GLRenderer::skyBotLoc = -1;
+    GLint GLRenderer::camPosLoc = -1, GLRenderer::lightDirLoc = -1, GLRenderer::lightColLoc = -1;
+    GLint GLRenderer::ambColLoc = -1, GLRenderer::skyTopLoc = -1, GLRenderer::skyBotLoc = -1;
     
     int GLRenderer::width = 0;
     int GLRenderer::height = 0;
 
+    // Camera Init
     glm::vec3 GLRenderer::cameraPos = glm::vec3(0.0f, 2.0f, 5.0f);
+    glm::vec3 GLRenderer::cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
+    glm::vec3 GLRenderer::cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+    float GLRenderer::yaw = -90.0f;
+    float GLRenderer::pitch = 0.0f;
+
     RenderState GLRenderer::currentState = RenderState::OVERWORLD;
     std::string GLRenderer::activeEntity = "";
     
@@ -35,18 +41,37 @@ namespace LostDungeons {
         activeEntity = entityId;
         
         if (currentState == RenderState::OVERWORLD) {
-            cameraPos = glm::vec3(cameraPos.x, 2.0f, cameraPos.z); // Maintain X/Z position
+            cameraPos.y = 2.0f; // Reset height but keep X/Z
         } else {
-            cameraPos = glm::vec3(0.0f, 1.5f, 4.0f); // Lock for battle
+            // Lock camera for battle
+            cameraPos = glm::vec3(0.0f, 1.5f, 4.0f); 
+            yaw = -90.0f;
+            pitch = 0.0f;
+            cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
         }
     }
 
-    void GLRenderer::moveCamera(float dx, float dz) {
+    void GLRenderer::updateInput(float moveX, float moveY, float lookX, float lookY) {
         std::lock_guard<std::mutex> lock(stateMutex);
-        if (currentState == RenderState::OVERWORLD) {
-            cameraPos.x += dx;
-            cameraPos.z += dz;
-        }
+        if (currentState != RenderState::OVERWORLD) return;
+
+        // Camera Swipe Math (Look)
+        yaw += lookX * 0.15f;
+        pitch -= lookY * 0.15f;
+        if (pitch > 89.0f) pitch = 89.0f;
+        if (pitch < -89.0f) pitch = -89.0f;
+
+        glm::vec3 front;
+        front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+        front.y = sin(glm::radians(pitch));
+        front.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+        cameraFront = glm::normalize(front);
+
+        // Joystick Math (Move)
+        glm::vec3 right = glm::normalize(glm::cross(cameraFront, cameraUp));
+        cameraPos += cameraFront * moveY * 0.1f;
+        cameraPos += right * moveX * 0.1f;
+        cameraPos.y = 2.0f; // Anchor to the ground
     }
 
     void GLRenderer::start(ANativeWindow* window) {
@@ -64,7 +89,10 @@ namespace LostDungeons {
     void GLRenderer::setViewport(int w, int h) { width = w; height = h; }
 
     void GLRenderer::renderLoop(ANativeWindow* window) {
-        if (!initEGL(window)) return;
+        if (!initEGL(window)) {
+            __android_log_print(ANDROID_LOG_ERROR, "LostDungeonsGL", "EGL Init failed. Aborting thread.");
+            return;
+        }
         setupGraphics();
         generateProceduralTerrain();
         
@@ -115,6 +143,7 @@ namespace LostDungeons {
         std::string vertSrc = AssetManager::loadTextFile("shaders/base.vert");
         std::string fragSrc = AssetManager::loadTextFile("shaders/base.frag");
         if (vertSrc.empty() || fragSrc.empty()) return;
+        
         GLuint vs = loadShader(GL_VERTEX_SHADER, vertSrc.c_str());
         GLuint fs = loadShader(GL_FRAGMENT_SHADER, fragSrc.c_str());
         if (!vs || !fs) return;
@@ -127,6 +156,7 @@ namespace LostDungeons {
         mvpLoc = glGetUniformLocation(shaderProgram, "u_MVP");
         modelLoc = glGetUniformLocation(shaderProgram, "u_Model");
         timeLoc = glGetUniformLocation(shaderProgram, "u_Time");
+        camPosLoc = glGetUniformLocation(shaderProgram, "u_CameraPos");
         lightDirLoc = glGetUniformLocation(shaderProgram, "u_LightDir");
         lightColLoc = glGetUniformLocation(shaderProgram, "u_LightColor");
         ambColLoc = glGetUniformLocation(shaderProgram, "u_AmbientColor");
@@ -136,12 +166,11 @@ namespace LostDungeons {
         glEnable(GL_DEPTH_TEST);
     }
 
-    // Mathematical grid generation for realistic soil/grass
     void GLRenderer::generateProceduralTerrain() {
         terrainVertices.clear();
         terrainIndices.clear();
         
-        int gridSize = 40;
+        int gridSize = 60; // Larger grid for view distance
         float spacing = 0.5f;
 
         for (int z = -gridSize/2; z < gridSize/2; ++z) {
@@ -149,18 +178,17 @@ namespace LostDungeons {
                 float fx = x * spacing;
                 float fz = z * spacing;
                 
-                // Procedural Elevation (Simulating Rocks and Soil)
+                // Procedural terrain bumps
                 float fy = sin(fx * 0.5f) * cos(fz * 0.5f) * 0.5f; 
-                fy += sin(fx * 1.5f + fz) * 0.2f; // Detail noise
+                fy += sin(fx * 1.5f + fz) * 0.2f;
 
-                // Color mapping based on elevation
-                float r = 0.2f, g = 0.5f, b = 0.2f; // Base Grass
-                if (fy < -0.2f) { r = 0.3f; g = 0.2f; b = 0.1f; } // Soil/Dirt in dips
-                if (fy > 0.3f) { r = 0.4f; g = 0.4f; b = 0.4f; }  // Rocky peaks
+                // Color elevation mapping
+                float r = 0.2f, g = 0.5f, b = 0.2f; 
+                if (fy < -0.2f) { r = 0.3f; g = 0.2f; b = 0.1f; } // Soil
+                if (fy > 0.3f) { r = 0.4f; g = 0.4f; b = 0.4f; }  // Rock
                 
-                // Position (3), Color (4), Normal (3) = 10 floats per vertex
                 terrainVertices.insert(terrainVertices.end(), {
-                    fx, fy, fz,   r, g, b, 1.0f,   0.0f, 1.0f, 0.0f // Upward normal for simplicity
+                    fx, fy, fz,   r, g, b, 1.0f,   0.0f, 1.0f, 0.0f
                 });
             }
         }
@@ -183,21 +211,19 @@ namespace LostDungeons {
     void GLRenderer::drawFrame() {
         if (!shaderProgram) return;
 
-        // 1. Calculate Engine Time (Used for Wind and Sun Cycle)
         auto now = std::chrono::steady_clock::now();
         float engineTime = std::chrono::duration<float>(now - startTime).count();
 
-        // 2. Day / Night Cycle Logic (Cycle every 60 seconds)
-        float cycle = sin(engineTime * 0.1f); // Range -1 to 1
+        // Day / Night Cycle Logic
+        float cycle = sin(engineTime * 0.1f);
         bool isDay = cycle > 0.0f;
 
         glm::vec3 skyTop = isDay ? glm::vec3(0.1f, 0.4f, 0.8f) : glm::vec3(0.01f, 0.02f, 0.1f);
         glm::vec3 skyBot = isDay ? glm::vec3(0.6f, 0.8f, 0.9f) : glm::vec3(0.0f, 0.0f, 0.05f);
         glm::vec3 lightDir = glm::vec3(cos(engineTime*0.1f), sin(engineTime*0.1f), 0.5f);
-        glm::vec3 lightCol = isDay ? glm::vec3(1.0f, 0.9f, 0.8f) : glm::vec3(0.2f, 0.3f, 0.6f); // Warm Sun vs Cold Moon
+        glm::vec3 lightCol = isDay ? glm::vec3(1.0f, 0.9f, 0.8f) : glm::vec3(0.2f, 0.3f, 0.6f); 
         glm::vec3 ambCol = isDay ? glm::vec3(0.3f, 0.3f, 0.3f) : glm::vec3(0.05f, 0.05f, 0.1f);
 
-        // Clear screen with sky bottom color to blend seamlessly
         glViewport(0, 0, width, height);
         glClearColor(skyBot.r, skyBot.g, skyBot.b, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -205,20 +231,21 @@ namespace LostDungeons {
         glUseProgram(shaderProgram);
         std::lock_guard<std::mutex> lock(stateMutex);
 
-        // 3. Update Uniforms
         glUniform1f(timeLoc, engineTime);
         glUniform3fv(lightDirLoc, 1, glm::value_ptr(lightDir));
         glUniform3fv(lightColLoc, 1, glm::value_ptr(lightCol));
         glUniform3fv(ambColLoc, 1, glm::value_ptr(ambCol));
         glUniform3fv(skyTopLoc, 1, glm::value_ptr(skyTop));
         glUniform3fv(skyBotLoc, 1, glm::value_ptr(skyBot));
+        glUniform3fv(camPosLoc, 1, glm::value_ptr(cameraPos)); // Important for distance fog
 
         float aspect = (float)width / (float)(height > 0 ? height : 1);
         glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 100.0f);
+        
         glm::vec3 lookTarget = (currentState == RenderState::OVERWORLD) ? 
-                               glm::vec3(cameraPos.x, 0.0f, cameraPos.z - 3.0f) : glm::vec3(0.0f, 0.5f, 0.0f);
+                               (cameraPos + cameraFront) : glm::vec3(0.0f, 0.5f, 0.0f);
                                
-        glm::mat4 view = glm::lookAt(cameraPos, lookTarget, glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::mat4 view = glm::lookAt(cameraPos, lookTarget, cameraUp);
         glm::mat4 model = glm::mat4(1.0f);
         glm::mat4 mvp = projection * view * model;
         
@@ -240,6 +267,11 @@ namespace LostDungeons {
         glEnableVertexAttribArray(0);
         glEnableVertexAttribArray(1);
         glEnableVertexAttribArray(2);
+        
+        // Terrain is stationary relative to camera to give infinite illusion
+        glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(floor(cameraPos.x), 0.0f, floor(cameraPos.z)));
+        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+        
         glDrawElements(GL_TRIANGLES, terrainIndices.size(), GL_UNSIGNED_INT, terrainIndices.data());
     }
 
@@ -248,7 +280,6 @@ namespace LostDungeons {
         if (activeEntity == "Slime") { r = 0.2f; g = 0.2f; b = 0.8f; }
 
         GLfloat vertices[] = {
-            // Pos(3), Color(4), Normal(3)
             -0.5f, 0.0f,  0.5f,  r, g, b, 1.0f,  -0.5f, 0.5f,  0.5f,
              0.5f, 0.0f,  0.5f,  r, g, b, 1.0f,   0.5f, 0.5f,  0.5f,
              0.0f, 1.0f,  0.0f,  r+0.2f, g, b, 1.0f,  0.0f, 1.0f, 0.0f,
@@ -256,6 +287,10 @@ namespace LostDungeons {
              0.5f, 0.0f, -0.5f,  r-0.2f, g, b, 1.0f,  0.5f, 0.5f, -0.5f
         };
         GLuint indices[] = { 0, 1, 2,  1, 4, 2,  4, 3, 2,  3, 0, 2 };
+
+        // Ensure the monster draws at origin
+        glm::mat4 model = glm::mat4(1.0f);
+        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
 
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 10 * sizeof(GLfloat), vertices);
         glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 10 * sizeof(GLfloat), &vertices[3]);
