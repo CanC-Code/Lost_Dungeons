@@ -16,22 +16,14 @@ import kotlinx.coroutines.launch
 
 class DungeonWidgetProvider : AppWidgetProvider() {
 
-    override fun onUpdate(
-        context: Context,
-        appWidgetManager: AppWidgetManager,
-        appWidgetIds: IntArray
-    ) {
+    override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
         for (appWidgetId in appWidgetIds) {
             updateAppWidget(context, appWidgetManager, appWidgetId)
         }
     }
 
     companion object {
-        fun updateAppWidget(
-            context: Context,
-            appWidgetManager: AppWidgetManager,
-            appWidgetId: Int
-        ) {
+        fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int) {
             val views = RemoteViews(context.packageName, R.layout.widget_dungeon_info)
 
             val menuIntent = Intent(context, WidgetDialogActivity::class.java)
@@ -41,7 +33,6 @@ class DungeonWidgetProvider : AppWidgetProvider() {
             )
             views.setOnClickPendingIntent(R.id.btn_widget_menu, menuPendingIntent)
 
-            // FIX: Route through IntroActivity to ensure safe loading
             val launchIntent = Intent(context, IntroActivity::class.java)
             val launchPendingIntent = PendingIntent.getActivity(
                 context, 1, launchIntent,
@@ -56,13 +47,18 @@ class DungeonWidgetProvider : AppWidgetProvider() {
 
                 if (state != null) {
                     val statusText = if (state.isSimulationActive) "[Engine: Active]" else "[Engine: Paused]"
+                    val color = if (state.isSimulationActive) android.graphics.Color.parseColor("#4CAF50") else android.graphics.Color.parseColor("#FF5252")
+                    
+                    views.setTextViewText(R.id.tv_widget_engine_status, statusText)
+                    views.setTextColor(R.id.tv_widget_engine_status, color)
+                    
+                    views.setTextViewText(R.id.tv_widget_biome, "Biome: ${state.currentBiome}")
+                    views.setTextViewText(R.id.tv_widget_floor, "Floor: ${state.currentFloor}")
                     
                     if (party.isNotEmpty()) {
                         val hero = party[0]
-                        views.setTextViewText(R.id.tv_widget_hero, "${hero.name} the ${hero.characterClass}")
-                        views.setTextViewText(R.id.tv_widget_status, "Floor: ${state.currentFloor} | HP: ${hero.currentHp}/${hero.maxHp}\n$statusText")
-                    } else {
-                        views.setTextViewText(R.id.tv_widget_status, "Floor: ${state.currentFloor}\n$statusText")
+                        views.setTextViewText(R.id.tv_widget_hero, "${hero.name} (${hero.characterClass})")
+                        views.setTextViewText(R.id.tv_widget_hp, "HP: ${hero.currentHp}/${hero.maxHp}")
                     }
                 }
                 appWidgetManager.updateAppWidget(appWidgetId, views)
