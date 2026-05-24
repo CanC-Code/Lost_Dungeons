@@ -63,13 +63,15 @@ Java_com_dungeon_engine_SimulationController_nativeSetGameState(
     env->ReleaseStringUTFChars(entityId, cEntityId);
 }
 
+// Phase 6: Multi-touch inputs for FPS Camera
 extern "C" JNIEXPORT void JNICALL
-Java_com_dungeon_engine_SimulationController_nativeMoveCamera(
-        JNIEnv* env, jobject /* this */, jfloat dx, jfloat dz) {
+Java_com_dungeon_engine_SimulationController_nativeUpdateInput(
+        JNIEnv* env, jobject /* this */, jfloat moveX, jfloat moveY, jfloat lookX, jfloat lookY) {
     
-    LostDungeons::GLRenderer::moveCamera(dx, dz);
+    LostDungeons::GLRenderer::updateInput(moveX, moveY, lookX, lookY);
 }
 
+// Phase 0: Legacy Simulation Loop
 extern "C" JNIEXPORT jintArray JNICALL
 Java_com_dungeon_engine_SimulationController_nativeRunSimulation(
         JNIEnv* env, jobject /* this */, jlong deltaSeconds, jint currentFloor, jint currentHp, jint attackStat) {
