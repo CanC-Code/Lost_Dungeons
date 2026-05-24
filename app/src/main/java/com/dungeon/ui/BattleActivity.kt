@@ -65,7 +65,8 @@ class BattleActivity : AppCompatActivity() {
         btnEvade = findViewById(R.id.btn_evade)
         pbEvadeTimer = findViewById(R.id.pb_evade_timer)
 
-        val tvInfo = findViewById(R.id.tv_environment_info)
+        // FIXED: Added the explicit <TextView> parameter to resolve the inference cascade error
+        val tvInfo = findViewById<TextView>(R.id.tv_environment_info)
 
         // Setup RecyclerView for Logs
         logAdapter = CombatLogAdapter(combatLogs)
