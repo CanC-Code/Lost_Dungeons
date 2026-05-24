@@ -7,7 +7,9 @@ import android.view.SurfaceView
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
+import android.widget.LinearLayout
 import android.widget.ProgressBar
+import android.widget.RelativeLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
@@ -20,35 +22,44 @@ import com.dungeon.engine.SimulationController
 import kotlinx.coroutines.*
 import kotlin.random.Random
 
+enum class GameState { OVERWORLD, BATTLE }
+
 class BattleActivity : AppCompatActivity() {
 
     private lateinit var db: GameDatabase
     private var activeHero: PartyMemberEntity? = null
     
-    // Live Battle State
-    private var isBattleActive = true
+    // Core Game State
+    private var currentState = GameState.OVERWORLD
+    private var isBattleActive = false
     private var enemyHp = 100
     private var enemyMaxHp = 100
     
     // Evasion Window Timing
     private var evadeActiveUntil: Long = 0
-    private val evadeWindowMillis: Long = 1200 // 1.2 seconds to dodge
+    private val evadeWindowMillis: Long = 1200
     private var isEvadeOnCooldown = false
     
-    // UI References
+    // UI Layout References
+    private lateinit var layoutOverworld: RelativeLayout
+    private lateinit var layoutBattle: LinearLayout
+    private lateinit var layoutEnemyStatus: LinearLayout
+    private lateinit var tvInfo: TextView
+    
+    // Battle HUD References
     private lateinit var rvLog: RecyclerView
     private lateinit var pbPlayerHp: ProgressBar
     private lateinit var tvPlayerHpText: TextView
     private lateinit var pbEnemyHp: ProgressBar
     private lateinit var tvEnemyName: TextView
-    
-    // Evade Button References
     private lateinit var btnEvade: Button
     private lateinit var pbEvadeTimer: ProgressBar
 
     // Combat Log Data
     private val combatLogs = mutableListOf<String>()
     private lateinit var logAdapter: CombatLogAdapter
+    
+    private var attackJob: Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -56,26 +67,33 @@ class BattleActivity : AppCompatActivity() {
 
         db = GameDatabase.getDatabase(this)
         
+        // Map HUD Elements
+        layoutOverworld = findViewById(R.id.layout_overworld_hud)
+        layoutBattle = findViewById(R.id.layout_battle_hud)
+        layoutEnemyStatus = findViewById(R.id.layout_enemy_status)
+        tvInfo = findViewById(R.id.tv_environment_info)
+        
+        // Map Battle Elements
         rvLog = findViewById(R.id.rv_combat_log)
         pbPlayerHp = findViewById(R.id.pb_player_hp)
         tvPlayerHpText = findViewById(R.id.tv_player_hp_text)
         pbEnemyHp = findViewById(R.id.pb_enemy_hp)
         tvEnemyName = findViewById(R.id.tv_enemy_name)
-        
         btnEvade = findViewById(R.id.btn_evade)
         pbEvadeTimer = findViewById(R.id.pb_evade_timer)
 
-        // FIXED: Added the explicit <TextView> parameter to resolve the inference cascade error
-        val tvInfo = findViewById<TextView>(R.id.tv_environment_info)
-
-        // Setup RecyclerView for Logs
+        // Setup RecyclerView
         logAdapter = CombatLogAdapter(combatLogs)
-        rvLog.layoutManager = LinearLayoutManager(this).apply {
-            stackFromEnd = true // Makes the list populate from the bottom up
-        }
+        rvLog.layoutManager = LinearLayoutManager(this).apply { stackFromEnd = true }
         rvLog.adapter = logAdapter
 
-        // Setup Buttons
+        // Setup Overworld Movement Buttons
+        findViewById<Button>(R.id.btn_move_up).setOnClickListener { move("North") }
+        findViewById<Button>(R.id.btn_move_down).setOnClickListener { move("South") }
+        findViewById<Button>(R.id.btn_move_left).setOnClickListener { move("West") }
+        findViewById<Button>(R.id.btn_move_right).setOnClickListener { move("East") }
+
+        // Setup Battle Action Buttons
         findViewById<Button>(R.id.btn_fight).setOnClickListener { playerAttack(isMagic = false) }
         findViewById<Button>(R.id.btn_magic).setOnClickListener { playerAttack(isMagic = true) }
         findViewById<Button>(R.id.btn_item).setOnClickListener { logMsg("You have no items yet.") }
@@ -84,11 +102,8 @@ class BattleActivity : AppCompatActivity() {
 
         // --- NATIVE ENGINE INITIALIZATION ---
         val controller = SimulationController()
-        
-        // 1. Give C++ access to the APK assets (JSONs, Shaders)
         controller.nativeInitAssetManager(assets)
         
-        // 2. Wire the Android SurfaceView to the C++ OpenGL Renderer
         val renderSurface = findViewById<SurfaceView>(R.id.render_surface)
         renderSurface.holder.addCallback(object : SurfaceHolder.Callback {
             override fun surfaceCreated(holder: SurfaceHolder) {
@@ -101,9 +116,8 @@ class BattleActivity : AppCompatActivity() {
                 controller.nativeSurfaceDestroyed()
             }
         })
-        // ------------------------------------
 
-        // Load Hero and Start Battle Loop
+        // Load Hero and initialize Overworld
         lifecycleScope.launch(Dispatchers.IO) {
             val state = db.gameStateDao().getGameState()
             val party = db.gameStateDao().getParty()
@@ -113,103 +127,75 @@ class BattleActivity : AppCompatActivity() {
                     activeHero = party[0]
                     tvInfo.text = "Path: ${state.currentBiome} | Floor: ${state.currentFloor} | ${activeHero!!.name}"
                     updateHpUI()
-                    spawnEnemy()
-                    startEnemyAttackLoop()
+                    switchToOverworld()
                 } else {
-                    logMsg("Error loading character state.")
+                    tvInfo.text = "Error loading character state."
                 }
             }
         }
     }
 
-    private fun updateHpUI() {
-        activeHero?.let { hero ->
-            pbPlayerHp.max = hero.maxHp
-            pbPlayerHp.progress = hero.currentHp
-            tvPlayerHpText.text = "Hero HP: ${hero.currentHp}/${hero.maxHp}"
-        }
-        pbEnemyHp.max = enemyMaxHp
-        pbEnemyHp.progress = enemyHp
+    // --- State Machine ---
+    private fun switchToOverworld() {
+        currentState = GameState.OVERWORLD
+        isBattleActive = false
+        attackJob?.cancel() // Stop the enemy attack loop
+        
+        layoutBattle.visibility = View.GONE
+        layoutEnemyStatus.visibility = View.GONE
+        layoutOverworld.visibility = View.VISIBLE
     }
 
-    private fun logMsg(msg: String) {
-        combatLogs.add(msg)
-        logAdapter.notifyItemInserted(combatLogs.size - 1)
-        rvLog.scrollToPosition(combatLogs.size - 1)
+    private fun switchToBattle() {
+        currentState = GameState.BATTLE
+        
+        layoutOverworld.visibility = View.GONE
+        layoutBattle.visibility = View.VISIBLE
+        layoutEnemyStatus.visibility = View.VISIBLE
+        
+        combatLogs.clear()
+        logAdapter.notifyDataSetChanged()
+        
+        spawnEnemy()
+        startEnemyAttackLoop()
     }
 
-    private fun triggerEvade() {
-        if (!isBattleActive || isEvadeOnCooldown) return
+    // --- Overworld Logic ---
+    private fun move(direction: String) {
+        if (currentState != GameState.OVERWORLD) return
         
-        isEvadeOnCooldown = true
-        btnEvade.isEnabled = false
-        evadeActiveUntil = System.currentTimeMillis() + evadeWindowMillis
-        logMsg("You prepare to dodge! (Timing Window Active)")
-
-        pbEvadeTimer.visibility = View.VISIBLE
+        // TODO: In Phase 4, Step 3, we will send this command to C++ GLM Matrix
+        // controller.nativeMoveCamera(dx, dy)
         
-        lifecycleScope.launch {
-            val startTime = System.currentTimeMillis()
-            var elapsed = 0L
-            
-            // 1. Tick down the visual window
-            while (elapsed < evadeWindowMillis) {
-                elapsed = System.currentTimeMillis() - startTime
-                val progress = 100 - ((elapsed.toFloat() / evadeWindowMillis) * 100).toInt()
-                pbEvadeTimer.progress = progress
-                delay(16) // roughly 60fps
-            }
-            
-            pbEvadeTimer.visibility = View.INVISIBLE
-            logMsg("Evade stance ended. Recovering...")
-            
-            // 2. Cooldown phase
-            delay(2500)
-            btnEvade.isEnabled = true
-            isEvadeOnCooldown = false
-            logMsg("Evade is ready!")
+        // 25% chance of random encounter per step
+        if (Random.nextInt(100) < 25) {
+            switchToBattle()
         }
     }
 
-    private fun playerAttack(isMagic: Boolean) {
-        if (!isBattleActive || activeHero == null) return
-        
-        val hero = activeHero!!
-        val damage = if (isMagic) hero.magicStat + Random.nextInt(0, 5) else hero.attackStat + Random.nextInt(0, 5)
-        
-        enemyHp -= damage
-        if (enemyHp < 0) enemyHp = 0
-        
-        logMsg(if (isMagic) "You cast a spell for $damage DMG!" else "You strike for $damage DMG!")
+    // --- Battle Logic ---
+    private fun spawnEnemy() {
+        enemyMaxHp = Random.nextInt(40, 90)
+        enemyHp = enemyMaxHp
+        tvEnemyName.text = listOf("Goblin", "Slime", "Wolf", "Skeleton").random()
+        logMsg("A wild ${tvEnemyName.text} ambushes you!")
+        isBattleActive = true
         updateHpUI()
-
-        if (enemyHp <= 0) winBattle()
-    }
-
-    private fun attemptRun() {
-        if (!isBattleActive) return
-        if (Random.nextBoolean()) {
-            logMsg("Got away safely! Moving forward...")
-            spawnEnemy()
-        } else {
-            logMsg("Failed to escape!")
-        }
     }
 
     private fun startEnemyAttackLoop() {
-        lifecycleScope.launch {
-            while (isActive) {
-                delay(3000) // Enemy attacks every 3 seconds
+        attackJob?.cancel()
+        attackJob = lifecycleScope.launch {
+            while (isActive && isBattleActive) {
+                delay(3000)
                 if (isBattleActive && activeHero != null) {
-                    
                     val now = System.currentTimeMillis()
                     if (now <= evadeActiveUntil) {
                         logMsg("PERFECT DODGE! Negated enemy attack!")
                         trainEvasion()
                     } else {
                         val hero = activeHero!!
-                        val dodgeRoll = Random.nextInt(0, 100)
-                        if (dodgeRoll < hero.evasionStat) {
+                        if (Random.nextInt(0, 100) < hero.evasionStat) {
                             logMsg("Your quick reflexes passively dodged the attack!")
                         } else {
                             val dmg = Random.nextInt(5, 15)
@@ -230,6 +216,76 @@ class BattleActivity : AppCompatActivity() {
         }
     }
 
+    private fun playerAttack(isMagic: Boolean) {
+        if (!isBattleActive || activeHero == null) return
+        val hero = activeHero!!
+        val damage = if (isMagic) hero.magicStat + Random.nextInt(0, 5) else hero.attackStat + Random.nextInt(0, 5)
+        enemyHp = (enemyHp - damage).coerceAtLeast(0)
+        
+        logMsg(if (isMagic) "You cast a spell for $damage DMG!" else "You strike for $damage DMG!")
+        updateHpUI()
+        
+        if (enemyHp <= 0) winBattle()
+    }
+
+    private fun attemptRun() {
+        if (!isBattleActive) return
+        if (Random.nextBoolean()) {
+            logMsg("Got away safely! Returning to exploration...")
+            lifecycleScope.launch { delay(1000); switchToOverworld() }
+        } else {
+            logMsg("Failed to escape!")
+        }
+    }
+
+    private fun winBattle() {
+        isBattleActive = false
+        logMsg("Victory! Enemy defeated.")
+        lifecycleScope.launch { delay(1500); switchToOverworld() }
+    }
+
+    private fun triggerEvade() {
+        if (!isBattleActive || isEvadeOnCooldown) return
+        isEvadeOnCooldown = true
+        btnEvade.isEnabled = false
+        evadeActiveUntil = System.currentTimeMillis() + evadeWindowMillis
+        logMsg("You prepare to dodge! (Timing Window Active)")
+        pbEvadeTimer.visibility = View.VISIBLE
+        
+        lifecycleScope.launch {
+            val startTime = System.currentTimeMillis()
+            var elapsed = 0L
+            while (elapsed < evadeWindowMillis) {
+                elapsed = System.currentTimeMillis() - startTime
+                val progress = 100 - ((elapsed.toFloat() / evadeWindowMillis) * 100).toInt()
+                pbEvadeTimer.progress = progress
+                delay(16)
+            }
+            pbEvadeTimer.visibility = View.INVISIBLE
+            logMsg("Evade stance ended. Recovering...")
+            delay(2500)
+            btnEvade.isEnabled = true
+            isEvadeOnCooldown = false
+            logMsg("Evade is ready!")
+        }
+    }
+
+    private fun updateHpUI() {
+        activeHero?.let { hero ->
+            pbPlayerHp.max = hero.maxHp
+            pbPlayerHp.progress = hero.currentHp
+            tvPlayerHpText.text = "Hero HP: ${hero.currentHp}/${hero.maxHp}"
+        }
+        pbEnemyHp.max = enemyMaxHp
+        pbEnemyHp.progress = enemyHp
+    }
+
+    private fun logMsg(msg: String) {
+        combatLogs.add(msg)
+        logAdapter.notifyItemInserted(combatLogs.size - 1)
+        rvLog.scrollToPosition(combatLogs.size - 1)
+    }
+
     private fun trainEvasion() {
         activeHero?.let { hero ->
             val updatedHero = hero.copy(evasionStat = hero.evasionStat + 1)
@@ -240,33 +296,10 @@ class BattleActivity : AppCompatActivity() {
     }
 
     private fun saveHeroState() {
-        activeHero?.let { hero ->
-            lifecycleScope.launch(Dispatchers.IO) {
-                db.gameStateDao().updatePartyMember(hero)
-            }
-        }
+        activeHero?.let { lifecycleScope.launch(Dispatchers.IO) { db.gameStateDao().updatePartyMember(it) } }
     }
 
-    private fun winBattle() {
-        isBattleActive = false
-        logMsg("Victory! Enemy defeated.")
-        
-        lifecycleScope.launch {
-            delay(1500)
-            spawnEnemy()
-        }
-    }
-
-    private fun spawnEnemy() {
-        enemyMaxHp = Random.nextInt(40, 90)
-        enemyHp = enemyMaxHp
-        tvEnemyName.text = listOf("Goblin", "Slime", "Wolf", "Skeleton").random()
-        logMsg("A wild ${tvEnemyName.text} appears!")
-        isBattleActive = true
-        updateHpUI()
-    }
-
-    // --- Inner Adapter Class for RecyclerView ---
+    // --- RecyclerView Adapter ---
     inner class CombatLogAdapter(private val logs: List<String>) : RecyclerView.Adapter<CombatLogAdapter.ViewHolder>() {
         inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
             val tvText: TextView = view.findViewById(R.id.tv_log_text)
