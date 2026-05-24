@@ -6,40 +6,84 @@
     android:orientation="vertical"
     android:padding="16dp">
 
-    <LinearLayout
+    <RelativeLayout
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:gravity="center_vertical"
-        android:orientation="vertical">
-
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp">
+        
         <TextView
             android:id="@+id/tv_widget_title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Lost Dungeons Engine"
             android:textColor="#00E5FF"
-            android:textSize="16sp"
+            android:textSize="14sp"
             android:textStyle="bold" />
 
         <TextView
-            android:id="@+id/tv_widget_hero"
+            android:id="@+id/tv_widget_engine_status"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="Awaiting Hero..."
-            android:textColor="#FFFFFF"
-            android:textSize="15sp"
-            android:textStyle="bold"/>
+            android:layout_alignParentEnd="true"
+            android:text="[Active]"
+            android:textColor="#4CAF50"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+    </RelativeLayout>
 
-        <TextView
-            android:id="@+id/tv_widget_status"
-            android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal"
+        android:baselineAligned="false">
+        
+        <LinearLayout
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:text="Loading database state..."
-            android:textColor="#BBBBBB"
-            android:textSize="14sp" />
+            android:layout_weight="1"
+            android:orientation="vertical">
+            <TextView
+                android:id="@+id/tv_widget_hero"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Awaiting Hero..."
+                android:textColor="#FFFFFF"
+                android:textSize="15sp"
+                android:textStyle="bold"/>
+            <TextView
+                android:id="@+id/tv_widget_hp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="HP: 0/0"
+                android:textColor="#FF5252"
+                android:textSize="14sp"
+                android:textStyle="bold"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="end">
+            <TextView
+                android:id="@+id/tv_widget_biome"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Biome: Unknown"
+                android:textColor="#BBBBBB"
+                android:textSize="14sp"/>
+            <TextView
+                android:id="@+id/tv_widget_floor"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="Floor: 0"
+                android:textColor="#BBBBBB"
+                android:textSize="14sp"/>
+        </LinearLayout>
     </LinearLayout>
 
     <LinearLayout
@@ -51,7 +95,7 @@
         <Button
             android:id="@+id/btn_widget_menu"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_height="36dp"
             android:layout_marginEnd="8dp"
             android:text="Menu"
             android:backgroundTint="#424242"
@@ -61,7 +105,7 @@
         <Button
             android:id="@+id/btn_widget_launch"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_height="36dp"
             android:text="Enter Dungeon"
             android:backgroundTint="#00838F"
             android:textColor="#FFFFFF"
