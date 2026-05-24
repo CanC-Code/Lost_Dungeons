@@ -1,17 +1,20 @@
 package com.dungeon.ui
 
+import android.annotation.SuppressLint
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ProgressBar
-import android.widget.RelativeLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.cardview.widget.CardView
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -20,6 +23,8 @@ import com.dungeon.database.GameDatabase
 import com.dungeon.database.entities.PartyMemberEntity
 import com.dungeon.engine.SimulationController
 import kotlinx.coroutines.*
+import kotlin.math.sqrt
+import kotlin.math.min
 import kotlin.random.Random
 
 enum class GameState { OVERWORLD, BATTLE }
@@ -27,28 +32,39 @@ enum class GameState { OVERWORLD, BATTLE }
 class BattleActivity : AppCompatActivity() {
 
     private lateinit var db: GameDatabase
-    private lateinit var controller: SimulationController // NEW: Class level access
+    private lateinit var controller: SimulationController
     private var activeHero: PartyMemberEntity? = null
     
-    // Core Game State
     private var currentState = GameState.OVERWORLD
     private var isBattleActive = false
     private var enemyHp = 100
     private var enemyMaxHp = 100
     private var currentEnemyName = ""
     
-    // Evasion Window Timing
     private var evadeActiveUntil: Long = 0
     private val evadeWindowMillis: Long = 1200
     private var isEvadeOnCooldown = false
     
-    // UI Layout References
-    private lateinit var layoutOverworld: RelativeLayout
+    // UI References
+    private lateinit var touchOverlay: FrameLayout
     private lateinit var layoutBattle: LinearLayout
     private lateinit var layoutEnemyStatus: LinearLayout
     private lateinit var tvInfo: TextView
     
-    // Battle HUD References
+    // Joystick References
+    private lateinit var joystickBase: CardView
+    private lateinit var joystickThumb: CardView
+    private var leftPointerId = -1
+    private var rightPointerId = -1
+    private var lastRightX = 0f
+    private var lastRightY = 0f
+    private var joyBaseX = 0f
+    private var joyBaseY = 0f
+    private var moveInputX = 0f
+    private var moveInputY = 0f
+    private var inputLoopJob: Job? = null
+    
+    // Battle HUD
     private lateinit var rvLog: RecyclerView
     private lateinit var pbPlayerHp: ProgressBar
     private lateinit var tvPlayerHpText: TextView
@@ -61,20 +77,22 @@ class BattleActivity : AppCompatActivity() {
     private lateinit var logAdapter: CombatLogAdapter
     private var attackJob: Job? = null
 
+    @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_battle)
 
         db = GameDatabase.getDatabase(this)
-        controller = SimulationController() // Initialize Engine Controller
+        controller = SimulationController()
         
-        // Map HUD Elements
-        layoutOverworld = findViewById(R.id.layout_overworld_hud)
+        touchOverlay = findViewById(R.id.touch_overlay)
         layoutBattle = findViewById(R.id.layout_battle_hud)
         layoutEnemyStatus = findViewById(R.id.layout_enemy_status)
         tvInfo = findViewById(R.id.tv_environment_info)
         
-        // Map Battle Elements
+        joystickBase = findViewById(R.id.joystick_base)
+        joystickThumb = findViewById(R.id.joystick_thumb)
+
         rvLog = findViewById(R.id.rv_combat_log)
         pbPlayerHp = findViewById(R.id.pb_player_hp)
         tvPlayerHpText = findViewById(R.id.tv_player_hp_text)
@@ -83,25 +101,98 @@ class BattleActivity : AppCompatActivity() {
         btnEvade = findViewById(R.id.btn_evade)
         pbEvadeTimer = findViewById(R.id.pb_evade_timer)
 
-        // Setup RecyclerView
         logAdapter = CombatLogAdapter(combatLogs)
         rvLog.layoutManager = LinearLayoutManager(this).apply { stackFromEnd = true }
         rvLog.adapter = logAdapter
 
-        // Setup Overworld Movement Buttons (Push to C++ Camera)
-        findViewById<Button>(R.id.btn_move_up).setOnClickListener { moveCameraAndCheckEncounter(0f, -0.5f) }
-        findViewById<Button>(R.id.btn_move_down).setOnClickListener { moveCameraAndCheckEncounter(0f, 0.5f) }
-        findViewById<Button>(R.id.btn_move_left).setOnClickListener { moveCameraAndCheckEncounter(-0.5f, 0f) }
-        findViewById<Button>(R.id.btn_move_right).setOnClickListener { moveCameraAndCheckEncounter(0.5f, 0f) }
-
-        // Setup Battle Action Buttons
+        // Battle Buttons
         findViewById<Button>(R.id.btn_fight).setOnClickListener { playerAttack(isMagic = false) }
         findViewById<Button>(R.id.btn_magic).setOnClickListener { playerAttack(isMagic = true) }
         findViewById<Button>(R.id.btn_item).setOnClickListener { logMsg("You have no items yet.") }
         findViewById<Button>(R.id.btn_run).setOnClickListener { attemptRun() }
         btnEvade.setOnClickListener { triggerEvade() }
 
-        // --- NATIVE ENGINE INITIALIZATION ---
+        // Setup Multi-Touch Dual Sticks
+        touchOverlay.setOnTouchListener { _, event ->
+            if (currentState != GameState.OVERWORLD) return@setOnTouchListener false
+            
+            val action = event.actionMasked
+            val pointerIndex = event.actionIndex
+            val pointerId = event.getPointerId(pointerIndex)
+            val x = event.getX(pointerIndex)
+            val y = event.getY(pointerIndex)
+            val isLeftSide = x < (resources.displayMetrics.widthPixels / 2)
+
+            when (action) {
+                MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
+                    if (isLeftSide && leftPointerId == -1) {
+                        leftPointerId = pointerId
+                        joyBaseX = x
+                        joyBaseY = y
+                        
+                        joystickBase.x = joyBaseX - (joystickBase.width / 2)
+                        joystickBase.y = joyBaseY - (joystickBase.height / 2)
+                        joystickThumb.x = x - (joystickThumb.width / 2)
+                        joystickThumb.y = y - (joystickThumb.height / 2)
+                        
+                        joystickBase.visibility = View.VISIBLE
+                        joystickThumb.visibility = View.VISIBLE
+                        startInputLoop()
+                        
+                    } else if (!isLeftSide && rightPointerId == -1) {
+                        rightPointerId = pointerId
+                        lastRightX = x
+                        lastRightY = y
+                    }
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    for (i in 0 until event.pointerCount) {
+                        val pId = event.getPointerId(i)
+                        val curX = event.getX(i)
+                        val curY = event.getY(i)
+
+                        if (pId == leftPointerId) {
+                            val dx = curX - joyBaseX
+                            val dy = curY - joyBaseY
+                            val distance = sqrt((dx * dx + dy * dy).toDouble()).toFloat()
+                            val maxRadius = joystickBase.width / 2f
+                            
+                            val ratio = min(1f, maxRadius / distance)
+                            val thumbX = if (distance > maxRadius) joyBaseX + dx * ratio else curX
+                            val thumbY = if (distance > maxRadius) joyBaseY + dy * ratio else curY
+                            
+                            joystickThumb.x = thumbX - (joystickThumb.width / 2)
+                            joystickThumb.y = thumbY - (joystickThumb.height / 2)
+
+                            moveInputX = (thumbX - joyBaseX) / maxRadius
+                            moveInputY = -((thumbY - joyBaseY) / maxRadius)
+
+                        } else if (pId == rightPointerId) {
+                            val deltaX = curX - lastRightX
+                            val deltaY = curY - lastRightY
+                            lastRightX = curX
+                            lastRightY = curY
+                            
+                            controller.nativeUpdateInput(0f, 0f, deltaX, deltaY)
+                        }
+                    }
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP, MotionEvent.ACTION_CANCEL -> {
+                    if (pointerId == leftPointerId) {
+                        leftPointerId = -1
+                        moveInputX = 0f
+                        moveInputY = 0f
+                        joystickBase.visibility = View.INVISIBLE
+                        joystickThumb.visibility = View.INVISIBLE
+                        stopInputLoop()
+                    } else if (pointerId == rightPointerId) {
+                        rightPointerId = -1
+                    }
+                }
+            }
+            true
+        }
+
         controller.nativeInitAssetManager(assets)
         
         val renderSurface = findViewById<SurfaceView>(R.id.render_surface)
@@ -117,7 +208,6 @@ class BattleActivity : AppCompatActivity() {
             }
         })
 
-        // Load Hero and initialize Overworld
         lifecycleScope.launch(Dispatchers.IO) {
             val state = db.gameStateDao().getGameState()
             val party = db.gameStateDao().getParty()
@@ -135,7 +225,26 @@ class BattleActivity : AppCompatActivity() {
         }
     }
 
-    // --- State Machine ---
+    private fun startInputLoop() {
+        if (inputLoopJob?.isActive == true) return
+        inputLoopJob = lifecycleScope.launch(Dispatchers.Default) {
+            while (isActive && leftPointerId != -1) {
+                controller.nativeUpdateInput(moveInputX, moveInputY, 0f, 0f)
+                
+                if (moveInputX != 0f || moveInputY != 0f) {
+                    if (Random.nextInt(1000) < 5) {
+                        withContext(Dispatchers.Main) { switchToBattle() }
+                    }
+                }
+                delay(16)
+            }
+        }
+    }
+
+    private fun stopInputLoop() {
+        inputLoopJob?.cancel()
+    }
+
     private fun switchToOverworld() {
         currentState = GameState.OVERWORLD
         isBattleActive = false
@@ -143,44 +252,31 @@ class BattleActivity : AppCompatActivity() {
         
         layoutBattle.visibility = View.GONE
         layoutEnemyStatus.visibility = View.GONE
-        layoutOverworld.visibility = View.VISIBLE
-
-        // Inform C++ Engine
+        touchOverlay.visibility = View.VISIBLE
         controller.nativeSetGameState(0, "")
     }
 
     private fun switchToBattle() {
         currentState = GameState.BATTLE
         
-        layoutOverworld.visibility = View.GONE
+        touchOverlay.visibility = View.GONE
         layoutBattle.visibility = View.VISIBLE
         layoutEnemyStatus.visibility = View.VISIBLE
+        
+        // Reset joystick cleanly
+        leftPointerId = -1
+        joystickBase.visibility = View.INVISIBLE
+        joystickThumb.visibility = View.INVISIBLE
+        stopInputLoop()
         
         combatLogs.clear()
         logAdapter.notifyDataSetChanged()
         
         spawnEnemy()
-        
-        // Inform C++ Engine (Pass enemy name so C++ draws correct monster data)
         controller.nativeSetGameState(1, currentEnemyName)
-        
         startEnemyAttackLoop()
     }
 
-    // --- Overworld Logic ---
-    private fun moveCameraAndCheckEncounter(dx: Float, dz: Float) {
-        if (currentState != GameState.OVERWORLD) return
-        
-        // Push movement to C++ GLM Matrix
-        controller.nativeMoveCamera(dx, dz)
-        
-        // 25% chance of random encounter per step
-        if (Random.nextInt(100) < 25) {
-            switchToBattle()
-        }
-    }
-
-    // --- Battle Logic ---
     private fun spawnEnemy() {
         enemyMaxHp = Random.nextInt(40, 90)
         enemyHp = enemyMaxHp
@@ -191,7 +287,6 @@ class BattleActivity : AppCompatActivity() {
         updateHpUI()
     }
 
-    // ... [Keep existing playerAttack, triggerEvade, trainEvasion, etc.]
     private fun startEnemyAttackLoop() {
         attackJob?.cancel()
         attackJob = lifecycleScope.launch {
@@ -308,7 +403,6 @@ class BattleActivity : AppCompatActivity() {
         activeHero?.let { lifecycleScope.launch(Dispatchers.IO) { db.gameStateDao().updatePartyMember(it) } }
     }
 
-    // --- RecyclerView Adapter ---
     inner class CombatLogAdapter(private val logs: List<String>) : RecyclerView.Adapter<CombatLogAdapter.ViewHolder>() {
         inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
             val tvText: TextView = view.findViewById(R.id.tv_log_text)
