@@ -27,13 +27,15 @@
             android:text="Path: Mountains | Level: 1"/>
 
         <LinearLayout
+            android:id="@+id/layout_enemy_status"
             android:layout_width="180dp"
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:layout_gravity="center_horizontal|top"
             android:layout_marginTop="50dp"
             android:background="#AA000000"
-            android:padding="8dp">
+            android:padding="8dp"
+            android:visibility="gone">
             
             <TextView
                 android:id="@+id/tv_enemy_name"
@@ -61,121 +63,182 @@
         </LinearLayout>
     </FrameLayout>
 
-    <LinearLayout
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:background="#1E1E24"
-        android:padding="12dp">
+        android:background="#1E1E24">
 
-        <LinearLayout
+        <RelativeLayout
+            android:id="@+id/layout_overworld_hud"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="12dp"
-            android:gravity="center_vertical">
+            android:layout_height="260dp"
+            android:padding="16dp">
             
             <TextView
-                android:id="@+id/tv_player_hp_text"
-                android:layout_width="100dp"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="#00E5FF"
-                android:text="Hero HP: "
-                android:textStyle="bold"/>
-                
-            <FrameLayout
-                android:layout_width="match_parent"
-                android:layout_height="16dp"
-                android:background="#333333">
-                <ProgressBar
-                    android:id="@+id/pb_player_hp"
-                    style="?android:attr/progressBarStyleHorizontal"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:progressTint="#00E5FF"
-                    android:progressBackgroundTint="@android:color/transparent"/>
-            </FrameLayout>
-        </LinearLayout>
+                android:layout_alignParentTop="true"
+                android:layout_centerHorizontal="true"
+                android:text="Exploring the Dungeon..."
+                android:textColor="#AAAAAA"
+                android:textStyle="bold"
+                android:layout_marginBottom="16dp"/>
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rv_combat_log"
-            android:layout_width="match_parent"
-            android:layout_height="100dp"
-            android:background="#121212"
-            android:layout_marginBottom="12dp"/>
+            <Button
+                android:id="@+id/btn_move_up"
+                android:layout_width="70dp"
+                android:layout_height="70dp"
+                android:layout_above="@+id/btn_move_down"
+                android:layout_centerHorizontal="true"
+                android:text="W"
+                android:backgroundTint="#424242"/>
+
+            <Button
+                android:id="@+id/btn_move_left"
+                android:layout_width="70dp"
+                android:layout_height="70dp"
+                android:layout_toStartOf="@+id/btn_move_down"
+                android:layout_alignTop="@+id/btn_move_down"
+                android:layout_marginEnd="4dp"
+                android:text="A"
+                android:backgroundTint="#424242"/>
+
+            <Button
+                android:id="@+id/btn_move_down"
+                android:layout_width="70dp"
+                android:layout_height="70dp"
+                android:layout_alignParentBottom="true"
+                android:layout_centerHorizontal="true"
+                android:layout_marginBottom="16dp"
+                android:text="S"
+                android:backgroundTint="#424242"/>
+
+            <Button
+                android:id="@+id/btn_move_right"
+                android:layout_width="70dp"
+                android:layout_height="70dp"
+                android:layout_toEndOf="@+id/btn_move_down"
+                android:layout_alignTop="@+id/btn_move_down"
+                android:layout_marginStart="4dp"
+                android:text="D"
+                android:backgroundTint="#424242"/>
+        </RelativeLayout>
 
         <LinearLayout
+            android:id="@+id/layout_battle_hud"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal">
-            
-            <Button
-                android:id="@+id/btn_fight"
-                android:layout_width="0dp"
-                android:layout_height="55dp"
-                android:layout_weight="1"
-                android:text="FIGHT"
-                android:backgroundTint="#B71C1C"
-                android:layout_marginEnd="4dp"/>
-                
-            <Button
-                android:id="@+id/btn_magic"
-                android:layout_width="0dp"
-                android:layout_height="55dp"
-                android:layout_weight="1"
-                android:text="MAGIC"
-                android:backgroundTint="#0D47A1"
-                android:layout_marginEnd="4dp"/>
+            android:orientation="vertical"
+            android:padding="12dp"
+            android:visibility="gone">
 
-            <FrameLayout
-                android:layout_width="0dp"
-                android:layout_height="55dp"
-                android:layout_weight="1">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="12dp"
+                android:gravity="center_vertical">
                 
-                <Button
-                    android:id="@+id/btn_evade"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:text="EVADE!"
-                    android:backgroundTint="#F57F17"
-                    android:textColor="#000000"
+                <TextView
+                    android:id="@+id/tv_player_hp_text"
+                    android:layout_width="100dp"
+                    android:layout_height="wrap_content"
+                    android:textColor="#00E5FF"
+                    android:text="Hero HP: "
                     android:textStyle="bold"/>
                     
-                <ProgressBar
-                    android:id="@+id/pb_evade_timer"
-                    style="?android:attr/progressBarStyleHorizontal"
+                <FrameLayout
                     android:layout_width="match_parent"
-                    android:layout_height="6dp"
-                    android:layout_gravity="bottom"
-                    android:progressTint="#FFFFFF"
-                    android:progressBackgroundTint="@android:color/transparent"
-                    android:visibility="invisible"
-                    android:max="100" />
-            </FrameLayout>
-        </LinearLayout>
+                    android:layout_height="16dp"
+                    android:background="#333333">
+                    <ProgressBar
+                        android:id="@+id/pb_player_hp"
+                        style="?android:attr/progressBarStyleHorizontal"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:progressTint="#00E5FF"
+                        android:progressBackgroundTint="@android:color/transparent"/>
+                </FrameLayout>
+            </LinearLayout>
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="8dp">
-            
-            <Button
-                android:id="@+id/btn_item"
-                android:layout_width="0dp"
-                android:layout_height="55dp"
-                android:layout_weight="1"
-                android:text="ITEM"
-                android:backgroundTint="#1B5E20"
-                android:layout_marginEnd="4dp"/>
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_combat_log"
+                android:layout_width="match_parent"
+                android:layout_height="100dp"
+                android:background="#121212"
+                android:layout_marginBottom="12dp"/>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
                 
-            <Button
-                android:id="@+id/btn_run"
-                android:layout_width="0dp"
-                android:layout_height="55dp"
-                android:layout_weight="1"
-                android:text="RUN"
-                android:backgroundTint="#E65100"/>
+                <Button
+                    android:id="@+id/btn_fight"
+                    android:layout_width="0dp"
+                    android:layout_height="55dp"
+                    android:layout_weight="1"
+                    android:text="FIGHT"
+                    android:backgroundTint="#B71C1C"
+                    android:layout_marginEnd="4dp"/>
+                    
+                <Button
+                    android:id="@+id/btn_magic"
+                    android:layout_width="0dp"
+                    android:layout_height="55dp"
+                    android:layout_weight="1"
+                    android:text="MAGIC"
+                    android:backgroundTint="#0D47A1"
+                    android:layout_marginEnd="4dp"/>
+
+                <FrameLayout
+                    android:layout_width="0dp"
+                    android:layout_height="55dp"
+                    android:layout_weight="1">
+                    <Button
+                        android:id="@+id/btn_evade"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:text="EVADE!"
+                        android:backgroundTint="#F57F17"
+                        android:textColor="#000000"
+                        android:textStyle="bold"/>
+                    <ProgressBar
+                        android:id="@+id/pb_evade_timer"
+                        style="?android:attr/progressBarStyleHorizontal"
+                        android:layout_width="match_parent"
+                        android:layout_height="6dp"
+                        android:layout_gravity="bottom"
+                        android:progressTint="#FFFFFF"
+                        android:progressBackgroundTint="@android:color/transparent"
+                        android:visibility="invisible"
+                        android:max="100" />
+                </FrameLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="8dp">
+                
+                <Button
+                    android:id="@+id/btn_item"
+                    android:layout_width="0dp"
+                    android:layout_height="55dp"
+                    android:layout_weight="1"
+                    android:text="ITEM"
+                    android:backgroundTint="#1B5E20"
+                    android:layout_marginEnd="4dp"/>
+                    
+                <Button
+                    android:id="@+id/btn_run"
+                    android:layout_width="0dp"
+                    android:layout_height="55dp"
+                    android:layout_weight="1"
+                    android:text="RUN"
+                    android:backgroundTint="#E65100"/>
+            </LinearLayout>
         </LinearLayout>
-    </LinearLayout>
+    </FrameLayout>
 </LinearLayout>
