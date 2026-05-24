@@ -27,6 +27,7 @@ enum class GameState { OVERWORLD, BATTLE }
 class BattleActivity : AppCompatActivity() {
 
     private lateinit var db: GameDatabase
+    private lateinit var controller: SimulationController // NEW: Class level access
     private var activeHero: PartyMemberEntity? = null
     
     // Core Game State
@@ -34,6 +35,7 @@ class BattleActivity : AppCompatActivity() {
     private var isBattleActive = false
     private var enemyHp = 100
     private var enemyMaxHp = 100
+    private var currentEnemyName = ""
     
     // Evasion Window Timing
     private var evadeActiveUntil: Long = 0
@@ -55,10 +57,8 @@ class BattleActivity : AppCompatActivity() {
     private lateinit var btnEvade: Button
     private lateinit var pbEvadeTimer: ProgressBar
 
-    // Combat Log Data
     private val combatLogs = mutableListOf<String>()
     private lateinit var logAdapter: CombatLogAdapter
-    
     private var attackJob: Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -66,6 +66,7 @@ class BattleActivity : AppCompatActivity() {
         setContentView(R.layout.activity_battle)
 
         db = GameDatabase.getDatabase(this)
+        controller = SimulationController() // Initialize Engine Controller
         
         // Map HUD Elements
         layoutOverworld = findViewById(R.id.layout_overworld_hud)
@@ -87,11 +88,11 @@ class BattleActivity : AppCompatActivity() {
         rvLog.layoutManager = LinearLayoutManager(this).apply { stackFromEnd = true }
         rvLog.adapter = logAdapter
 
-        // Setup Overworld Movement Buttons
-        findViewById<Button>(R.id.btn_move_up).setOnClickListener { move("North") }
-        findViewById<Button>(R.id.btn_move_down).setOnClickListener { move("South") }
-        findViewById<Button>(R.id.btn_move_left).setOnClickListener { move("West") }
-        findViewById<Button>(R.id.btn_move_right).setOnClickListener { move("East") }
+        // Setup Overworld Movement Buttons (Push to C++ Camera)
+        findViewById<Button>(R.id.btn_move_up).setOnClickListener { moveCameraAndCheckEncounter(0f, -0.5f) }
+        findViewById<Button>(R.id.btn_move_down).setOnClickListener { moveCameraAndCheckEncounter(0f, 0.5f) }
+        findViewById<Button>(R.id.btn_move_left).setOnClickListener { moveCameraAndCheckEncounter(-0.5f, 0f) }
+        findViewById<Button>(R.id.btn_move_right).setOnClickListener { moveCameraAndCheckEncounter(0.5f, 0f) }
 
         // Setup Battle Action Buttons
         findViewById<Button>(R.id.btn_fight).setOnClickListener { playerAttack(isMagic = false) }
@@ -101,7 +102,6 @@ class BattleActivity : AppCompatActivity() {
         btnEvade.setOnClickListener { triggerEvade() }
 
         // --- NATIVE ENGINE INITIALIZATION ---
-        val controller = SimulationController()
         controller.nativeInitAssetManager(assets)
         
         val renderSurface = findViewById<SurfaceView>(R.id.render_surface)
@@ -139,11 +139,14 @@ class BattleActivity : AppCompatActivity() {
     private fun switchToOverworld() {
         currentState = GameState.OVERWORLD
         isBattleActive = false
-        attackJob?.cancel() // Stop the enemy attack loop
+        attackJob?.cancel()
         
         layoutBattle.visibility = View.GONE
         layoutEnemyStatus.visibility = View.GONE
         layoutOverworld.visibility = View.VISIBLE
+
+        // Inform C++ Engine
+        controller.nativeSetGameState(0, "")
     }
 
     private fun switchToBattle() {
@@ -157,15 +160,19 @@ class BattleActivity : AppCompatActivity() {
         logAdapter.notifyDataSetChanged()
         
         spawnEnemy()
+        
+        // Inform C++ Engine (Pass enemy name so C++ draws correct monster data)
+        controller.nativeSetGameState(1, currentEnemyName)
+        
         startEnemyAttackLoop()
     }
 
     // --- Overworld Logic ---
-    private fun move(direction: String) {
+    private fun moveCameraAndCheckEncounter(dx: Float, dz: Float) {
         if (currentState != GameState.OVERWORLD) return
         
-        // TODO: In Phase 4, Step 3, we will send this command to C++ GLM Matrix
-        // controller.nativeMoveCamera(dx, dy)
+        // Push movement to C++ GLM Matrix
+        controller.nativeMoveCamera(dx, dz)
         
         // 25% chance of random encounter per step
         if (Random.nextInt(100) < 25) {
@@ -177,12 +184,14 @@ class BattleActivity : AppCompatActivity() {
     private fun spawnEnemy() {
         enemyMaxHp = Random.nextInt(40, 90)
         enemyHp = enemyMaxHp
-        tvEnemyName.text = listOf("Goblin", "Slime", "Wolf", "Skeleton").random()
-        logMsg("A wild ${tvEnemyName.text} ambushes you!")
+        currentEnemyName = listOf("Goblin", "Slime").random()
+        tvEnemyName.text = currentEnemyName
+        logMsg("A wild $currentEnemyName ambushes you!")
         isBattleActive = true
         updateHpUI()
     }
 
+    // ... [Keep existing playerAttack, triggerEvade, trainEvasion, etc.]
     private fun startEnemyAttackLoop() {
         attackJob?.cancel()
         attackJob = lifecycleScope.launch {
