@@ -12,6 +12,8 @@
 #include <atomic>
 #include <mutex>
 #include <string>
+#include <vector>
+#include <chrono>
 
 namespace LostDungeons {
     enum class RenderState { OVERWORLD = 0, BATTLE = 1 };
@@ -21,8 +23,6 @@ namespace LostDungeons {
         static void start(ANativeWindow* window);
         static void stop();
         static void setViewport(int width, int height);
-        
-        // NEW: Game State and Camera Controls
         static void setGameState(int state, const std::string& entityId);
         static void moveCamera(float dx, float dz);
 
@@ -35,24 +35,33 @@ namespace LostDungeons {
         static EGLSurface surface;
         static EGLContext context;
         static GLuint shaderProgram;
-        static GLint mvpLocation;
+        
+        // Shader Uniforms
+        static GLint mvpLoc, modelLoc, timeLoc;
+        static GLint lightDirLoc, lightColLoc, ambColLoc, skyTopLoc, skyBotLoc;
 
         static int width;
         static int height;
 
-        // Camera & State variables
         static glm::vec3 cameraPos;
         static RenderState currentState;
         static std::string activeEntity;
+        
+        // Engine Clock
+        static std::chrono::time_point<std::chrono::steady_clock> startTime;
+
+        // Procedural Geometry Buffers
+        static std::vector<GLfloat> terrainVertices;
+        static std::vector<GLuint> terrainIndices;
 
         static void renderLoop(ANativeWindow* window);
         static bool initEGL(ANativeWindow* window);
         static void destroyEGL();
         static GLuint loadShader(GLenum type, const char* shaderSrc);
         static void setupGraphics();
+        static void generateProceduralTerrain();
         static void drawFrame();
         
-        // Geometry Drawing Helpers
         static void drawOverworldFloor();
         static void drawEntityCube();
     };
