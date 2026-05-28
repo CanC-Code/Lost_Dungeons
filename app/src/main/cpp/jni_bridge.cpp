@@ -11,7 +11,7 @@ using json = nlohmann::json;
 extern "C" JNIEXPORT void JNICALL
 Java_com_dungeon_engine_SimulationController_nativeInitAssetManager(
         JNIEnv* env, jobject /* this */, jobject assetManager) {
-    
+
     LostDungeons::AssetManager::init(env, assetManager);
 
     std::string goblinData = LostDungeons::AssetManager::loadTextFile("data/monsters/goblin.json");
@@ -32,12 +32,12 @@ Java_com_dungeon_engine_SimulationController_nativeInitAssetManager(
 extern "C" JNIEXPORT void JNICALL
 Java_com_dungeon_engine_SimulationController_nativeSurfaceCreated(
         JNIEnv* env, jobject /* this */, jobject surface) {
-    
+
     if (!surface) return; // Prevent null surface crashes
-    
+
     ANativeWindow* window = ANativeWindow_fromSurface(env, surface);
     if (!window) return;
-    
+
     LostDungeons::GLRenderer::start(window);
 }
 
@@ -56,7 +56,7 @@ Java_com_dungeon_engine_SimulationController_nativeSurfaceDestroyed(
 extern "C" JNIEXPORT void JNICALL
 Java_com_dungeon_engine_SimulationController_nativeSetGameState(
         JNIEnv* env, jobject /* this */, jint state, jstring entityId) {
-    
+
     if (!entityId) return;
     const char* cEntityId = env->GetStringUTFChars(entityId, nullptr);
     LostDungeons::GLRenderer::setGameState(state, std::string(cEntityId));
@@ -67,7 +67,7 @@ Java_com_dungeon_engine_SimulationController_nativeSetGameState(
 extern "C" JNIEXPORT void JNICALL
 Java_com_dungeon_engine_SimulationController_nativeUpdateInput(
         JNIEnv* env, jobject /* this */, jfloat moveX, jfloat moveY, jfloat lookX, jfloat lookY) {
-    
+
     LostDungeons::GLRenderer::updateInput(moveX, moveY, lookX, lookY);
 }
 
@@ -75,7 +75,7 @@ Java_com_dungeon_engine_SimulationController_nativeUpdateInput(
 extern "C" JNIEXPORT jintArray JNICALL
 Java_com_dungeon_engine_SimulationController_nativeRunSimulation(
         JNIEnv* env, jobject /* this */, jlong deltaSeconds, jint currentFloor, jint currentHp, jint attackStat) {
-    
+
     LostDungeons::SimulationResult result = LostDungeons::Engine::runSimulation(
             (long)deltaSeconds, (int)currentFloor, (int)currentHp, (int)attackStat);
 
@@ -85,7 +85,7 @@ Java_com_dungeon_engine_SimulationController_nativeRunSimulation(
     fill[1] = result.finalHp;
     fill[2] = result.enemiesDefeated;
     fill[3] = result.partyDied ? 1 : 0;
-    
+
     env->SetIntArrayRegion(resultArray, 0, 4, fill);
     return resultArray;
 }
