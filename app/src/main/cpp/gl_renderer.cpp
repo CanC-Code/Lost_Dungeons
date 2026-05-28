@@ -1,6 +1,7 @@
 #include "gl_renderer.h"
 #include "asset_manager.h"
 #include <android/log.h>
+#include <android/native_window.h>
 #include <cmath>
 
 namespace LostDungeons {
@@ -91,7 +92,7 @@ namespace LostDungeons {
     void GLRenderer::renderLoop(ANativeWindow* window) {
         if (!initEGL(window)) {
             __android_log_print(ANDROID_LOG_ERROR, "LostDungeonsGL", "EGL Init failed. Aborting thread.");
-            if (window) ANativeWindow_release(window);
+            if (window) ANativeWindow_release(window); // Prevent leak on init failure
             return;
         }
         setupGraphics();
@@ -101,9 +102,10 @@ namespace LostDungeons {
             drawFrame();
             eglSwapBuffers(display, surface);
         }
+        
         destroyEGL();
         
-        // Safely release the window reference back to Android OS
+        // Properly release the window reference acquired by ANativeWindow_fromSurface
         if (window) {
             ANativeWindow_release(window);
         }
@@ -127,18 +129,13 @@ namespace LostDungeons {
 
     void GLRenderer::destroyEGL() {
         if (display != EGL_NO_DISPLAY) {
-            // Delete shader program while context is still valid
-            if (context != EGL_NO_CONTEXT && shaderProgram != 0) {
-                glDeleteProgram(shaderProgram);
-                shaderProgram = 0;
-            }
-
             eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
             
             if (context != EGL_NO_CONTEXT) {
                 eglDestroyContext(display, context);
                 context = EGL_NO_CONTEXT;
             }
+            
             if (surface != EGL_NO_SURFACE) {
                 eglDestroySurface(display, surface);
                 surface = EGL_NO_SURFACE;
@@ -146,6 +143,12 @@ namespace LostDungeons {
             
             eglTerminate(display);
             display = EGL_NO_DISPLAY;
+        }
+        
+        // Reset shader program so it rebuilds cleanly on resume
+        if (shaderProgram != 0) {
+            glDeleteProgram(shaderProgram);
+            shaderProgram = 0;
         }
     }
 
