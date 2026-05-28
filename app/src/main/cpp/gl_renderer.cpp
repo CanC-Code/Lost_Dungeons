@@ -8,16 +8,16 @@ namespace LostDungeons {
     std::atomic<bool> GLRenderer::isRendering{false};
     std::thread GLRenderer::renderThread;
     std::mutex GLRenderer::stateMutex;
-    
+
     EGLDisplay GLRenderer::display = EGL_NO_DISPLAY;
     EGLSurface GLRenderer::surface = EGL_NO_SURFACE;
     EGLContext GLRenderer::context = EGL_NO_CONTEXT;
     GLuint GLRenderer::shaderProgram = 0;
-    
+
     GLint GLRenderer::mvpLoc = -1, GLRenderer::modelLoc = -1, GLRenderer::timeLoc = -1;
     GLint GLRenderer::camPosLoc = -1, GLRenderer::lightDirLoc = -1, GLRenderer::lightColLoc = -1;
     GLint GLRenderer::ambColLoc = -1, GLRenderer::skyTopLoc = -1, GLRenderer::skyBotLoc = -1;
-    
+
     int GLRenderer::width = 0;
     int GLRenderer::height = 0;
 
@@ -30,7 +30,7 @@ namespace LostDungeons {
 
     RenderState GLRenderer::currentState = RenderState::OVERWORLD;
     std::string GLRenderer::activeEntity = "";
-    
+
     std::chrono::time_point<std::chrono::steady_clock> GLRenderer::startTime;
     std::vector<GLfloat> GLRenderer::terrainVertices;
     std::vector<GLuint> GLRenderer::terrainIndices;
@@ -39,7 +39,7 @@ namespace LostDungeons {
         std::lock_guard<std::mutex> lock(stateMutex);
         currentState = static_cast<RenderState>(state);
         activeEntity = entityId;
-        
+
         if (currentState == RenderState::OVERWORLD) {
             cameraPos.y = 2.0f; // Reset height but keep X/Z
         } else {
@@ -91,16 +91,22 @@ namespace LostDungeons {
     void GLRenderer::renderLoop(ANativeWindow* window) {
         if (!initEGL(window)) {
             __android_log_print(ANDROID_LOG_ERROR, "LostDungeonsGL", "EGL Init failed. Aborting thread.");
+            if (window) ANativeWindow_release(window);
             return;
         }
         setupGraphics();
         generateProceduralTerrain();
-        
+
         while (isRendering) {
             drawFrame();
             eglSwapBuffers(display, surface);
         }
         destroyEGL();
+        
+        // Safely release the window reference back to Android OS
+        if (window) {
+            ANativeWindow_release(window);
+        }
     }
 
     bool GLRenderer::initEGL(ANativeWindow* window) {
@@ -121,10 +127,25 @@ namespace LostDungeons {
 
     void GLRenderer::destroyEGL() {
         if (display != EGL_NO_DISPLAY) {
+            // Delete shader program while context is still valid
+            if (context != EGL_NO_CONTEXT && shaderProgram != 0) {
+                glDeleteProgram(shaderProgram);
+                shaderProgram = 0;
+            }
+
             eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-            if (context != EGL_NO_CONTEXT) eglDestroyContext(display, context);
-            if (surface != EGL_NO_SURFACE) eglDestroySurface(display, surface);
+            
+            if (context != EGL_NO_CONTEXT) {
+                eglDestroyContext(display, context);
+                context = EGL_NO_CONTEXT;
+            }
+            if (surface != EGL_NO_SURFACE) {
+                eglDestroySurface(display, surface);
+                surface = EGL_NO_SURFACE;
+            }
+            
             eglTerminate(display);
+            display = EGL_NO_DISPLAY;
         }
     }
 
@@ -143,16 +164,16 @@ namespace LostDungeons {
         std::string vertSrc = AssetManager::loadTextFile("shaders/base.vert");
         std::string fragSrc = AssetManager::loadTextFile("shaders/base.frag");
         if (vertSrc.empty() || fragSrc.empty()) return;
-        
+
         GLuint vs = loadShader(GL_VERTEX_SHADER, vertSrc.c_str());
         GLuint fs = loadShader(GL_FRAGMENT_SHADER, fragSrc.c_str());
         if (!vs || !fs) return;
-        
+
         shaderProgram = glCreateProgram();
         glAttachShader(shaderProgram, vs);
         glAttachShader(shaderProgram, fs);
         glLinkProgram(shaderProgram);
-        
+
         mvpLoc = glGetUniformLocation(shaderProgram, "u_MVP");
         modelLoc = glGetUniformLocation(shaderProgram, "u_Model");
         timeLoc = glGetUniformLocation(shaderProgram, "u_Time");
@@ -169,7 +190,7 @@ namespace LostDungeons {
     void GLRenderer::generateProceduralTerrain() {
         terrainVertices.clear();
         terrainIndices.clear();
-        
+
         int gridSize = 60; // Larger grid for view distance
         float spacing = 0.5f;
 
@@ -177,7 +198,7 @@ namespace LostDungeons {
             for (int x = -gridSize/2; x < gridSize/2; ++x) {
                 float fx = x * spacing;
                 float fz = z * spacing;
-                
+
                 // Procedural terrain bumps
                 float fy = sin(fx * 0.5f) * cos(fz * 0.5f) * 0.5f; 
                 fy += sin(fx * 1.5f + fz) * 0.2f;
@@ -186,7 +207,7 @@ namespace LostDungeons {
                 float r = 0.2f, g = 0.5f, b = 0.2f; 
                 if (fy < -0.2f) { r = 0.3f; g = 0.2f; b = 0.1f; } // Soil
                 if (fy > 0.3f) { r = 0.4f; g = 0.4f; b = 0.4f; }  // Rock
-                
+
                 terrainVertices.insert(terrainVertices.end(), {
                     fx, fy, fz,   r, g, b, 1.0f,   0.0f, 1.0f, 0.0f
                 });
@@ -241,14 +262,14 @@ namespace LostDungeons {
 
         float aspect = (float)width / (float)(height > 0 ? height : 1);
         glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 100.0f);
-        
+
         glm::vec3 lookTarget = (currentState == RenderState::OVERWORLD) ? 
                                (cameraPos + cameraFront) : glm::vec3(0.0f, 0.5f, 0.0f);
-                               
+
         glm::mat4 view = glm::lookAt(cameraPos, lookTarget, cameraUp);
         glm::mat4 model = glm::mat4(1.0f);
         glm::mat4 mvp = projection * view * model;
-        
+
         glUniformMatrix4fv(mvpLoc, 1, GL_FALSE, glm::value_ptr(mvp));
         glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
 
@@ -267,11 +288,11 @@ namespace LostDungeons {
         glEnableVertexAttribArray(0);
         glEnableVertexAttribArray(1);
         glEnableVertexAttribArray(2);
-        
+
         // Terrain is stationary relative to camera to give infinite illusion
         glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(floor(cameraPos.x), 0.0f, floor(cameraPos.z)));
         glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-        
+
         glDrawElements(GL_TRIANGLES, terrainIndices.size(), GL_UNSIGNED_INT, terrainIndices.data());
     }
 
