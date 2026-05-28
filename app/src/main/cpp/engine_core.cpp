@@ -5,7 +5,7 @@
 namespace LostDungeons {
     SimulationResult Engine::runSimulation(long deltaSeconds, int currentFloor, int currentHp, int attackStat) {
         __android_log_print(ANDROID_LOG_INFO, "LostDungeonsEngine", "Simulating %ld seconds...", deltaSeconds);
-
+        
         SimulationResult result;
         result.finalFloor = currentFloor;
         result.finalHp = currentHp;
@@ -17,10 +17,11 @@ namespace LostDungeons {
             return result; // Cannot progress if dead
         }
 
-        // --- Basic Idle Math ---
-        // Base time to clear a floor is 120 seconds. 
-        // Higher attack reduces this time (min 30 seconds per floor).
-        int secondsPerFloor = std::max(30, 120 - (attackStat / 2)); 
+        // --- Diminishing Returns Idle Math ---
+        // Base time to clear a floor is 120 seconds.
+        // Using division ensures the time per floor smoothly decreases 
+        // as attack scales infinitely, preventing a hard cap.
+        int secondsPerFloor = std::max(5, static_cast<int>(120.0 / (1.0 + (attackStat / 50.0))));
         
         int floorsCleared = deltaSeconds / secondsPerFloor;
         
