@@ -42,8 +42,10 @@ namespace LostDungeons {
         static void drawOverworldFloor();
         static void drawEntityCube();
         
-        static void drawCompassHUD(float engineTime);
-        static void drawMenuOverlay();
+        // Refactored 2D UI Pass functions
+        static void drawCompassHUD(float engineTime, const glm::mat4& proj);
+        static void drawMenuButton(const glm::mat4& proj);
+        static void drawMenuOverlay(const glm::mat4& proj);
 
         static std::atomic<bool> isRendering;
         static std::thread renderThread;
@@ -62,6 +64,10 @@ namespace LostDungeons {
 
         static int width;
         static int height;
+
+        // Dynamic UI Layout Trackers (Prevents Hitbox Desync)
+        static float compassX, compassY, compassRadius;
+        static float menuBtnX, menuBtnY, menuBtnRadius;
 
         // Active Camera State
         static glm::vec3 cameraPos;
