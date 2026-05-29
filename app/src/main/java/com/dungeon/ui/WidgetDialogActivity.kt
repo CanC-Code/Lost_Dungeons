@@ -9,7 +9,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import androidx.room.Room
 import com.dungeon.R
 import com.dungeon.database.GameDatabase
 import com.dungeon.ui.adapters.PartySelectionAdapter
@@ -27,14 +26,16 @@ class WidgetDialogActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_widget_dialog)
 
-        db = Room.databaseBuilder(
-            applicationContext,
-            GameDatabase::class.java, "dungeon-db"
-        ).build()
+        // FIX: Use the singleton accessor so this activity shares the same
+        //      Room connection as DungeonWorker and DungeonWidgetProvider.
+        //      The old Room.databaseBuilder() call here created a *second*
+        //      database connection, which caused schema-version mismatches and
+        //      missed writes from other components.
+        db = GameDatabase.getDatabase(applicationContext)
 
         val btnToggleSim = findViewById<Button>(R.id.btn_toggle_sim)
-        val btnClose = findViewById<Button>(R.id.btn_close)
-        val rvParty = findViewById<RecyclerView>(R.id.rv_party_members)
+        val btnClose     = findViewById<Button>(R.id.btn_close)
+        val rvParty      = findViewById<RecyclerView>(R.id.rv_party_members)
 
         partyAdapter = PartySelectionAdapter()
         rvParty.layoutManager = LinearLayoutManager(this)
@@ -79,7 +80,6 @@ class WidgetDialogActivity : AppCompatActivity() {
     }
 
     private fun refreshWidgetAndClose() {
-        // Triggers the widget provider to redraw itself with the newest database state
         val intent = Intent(this, DungeonWidgetProvider::class.java)
         intent.action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
         val ids = AppWidgetManager.getInstance(application).getAppWidgetIds(
