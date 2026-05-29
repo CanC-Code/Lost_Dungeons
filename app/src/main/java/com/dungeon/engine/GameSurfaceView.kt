@@ -11,6 +11,10 @@ class GameSurfaceView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null
 ) : SurfaceView(context, attrs), SurfaceHolder.Callback {
 
+    // Instantiate the controller so we can call its instance methods,
+    // matching how DungeonWorker and BattleActivity interact with it.
+    private val simulationController = SimulationController()
+
     init {
         holder.addCallback(this)
     }
@@ -20,21 +24,21 @@ class GameSurfaceView @JvmOverloads constructor(
     private val gestureDetector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
         override fun onSingleTapUp(e: MotionEvent): Boolean {
             // Pass the exact screen coordinates of the tap down to C++
-            SimulationController.nativeHandleTap(e.x, e.y)
+            simulationController.nativeHandleTap(e.x, e.y)
             return true
         }
     })
 
     override fun surfaceCreated(holder: SurfaceHolder) {
-        SimulationController.nativeSurfaceCreated(holder.surface)
+        simulationController.nativeSurfaceCreated(holder.surface)
     }
 
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
-        SimulationController.nativeSurfaceChanged(width, height)
+        simulationController.nativeSurfaceChanged(width, height)
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
-        SimulationController.nativeSurfaceDestroyed()
+        simulationController.nativeSurfaceDestroyed()
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
@@ -43,7 +47,7 @@ class GameSurfaceView @JvmOverloads constructor(
 
         // 2. Process your continuous multi-touch joystick & swipe look controls here.
         //    (You will continue to calculate your joystick drag values and send them 
-        //    to SimulationController.nativeUpdateInput(moveX, moveY, lookX, lookY) as normal).
+        //    to simulationController.nativeUpdateInput(moveX, moveY, lookX, lookY) as normal).
 
         return true 
     }
