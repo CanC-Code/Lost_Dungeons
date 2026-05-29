@@ -15,10 +15,10 @@ void main() {
     gl_Position = u_MVP * worldPos;
     v_Color = a_Color;
 
-    // Exponential Distance Fog calculation mapped to the far clipping plane
-    // This entirely solves the "cutoff" by blending distance into the sky dome.
+    // Exponential Distance Fog tuned for 1m:1m Scale.
+    // Reaches 100% opacity at roughly 320 meters out.
     float distance = length(u_CameraPos.xz - worldPos.xz);
-    float fogDensity = 0.025; // Controls how rapidly the horizon closes in
+    float fogDensity = 0.0055; 
     
     v_FogFactor = exp(-pow((distance * fogDensity), 2.0));
     v_FogFactor = clamp(v_FogFactor, 0.0, 1.0);
