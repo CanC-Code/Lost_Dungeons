@@ -40,7 +40,9 @@ namespace LostDungeons {
         
         static void drawOverworldFloor();
         static void drawEntityCube();
-        static void drawCompassHUD();
+        
+        // Corrected declaration to match the implementation in gl_renderer.cpp
+        static void drawCompassHUD(float engineTime);
 
         static std::atomic<bool> isRendering;
         static std::thread renderThread;
