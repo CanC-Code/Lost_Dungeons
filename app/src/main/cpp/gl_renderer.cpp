@@ -565,4 +565,12 @@ namespace LostDungeons {
         glDrawElements(GL_TRIANGLES, (GLsizei)compIndices.size(), GL_UNSIGNED_INT, compIndices.data());
 
         // Recalculate timeOfDayAngle for the clock diamond
-        float timeOfDayAngle = (engineTime / 3000.0f) * 3
+        float timeOfDayAngle = (engineTime / 3000.0f) * 3.14159265f * 2.0f;
+        (void)timeOfDayAngle; // Suppresses unused variable warning
+    }
+
+    void GLRenderer::drawMenuOverlay() {
+        // Implementation for drawing the menu overlay.
+    }
+
+} // namespace LostDungeons
