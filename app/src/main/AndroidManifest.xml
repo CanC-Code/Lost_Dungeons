@@ -17,9 +17,16 @@
             </intent-filter>
         </activity>
 
+        <!--
+            FIX: BattleActivity now declares Theme.AppCompat.NoActionBar so the
+            "Lost Dungeons" title bar is never inflated by the framework at all.
+            The supportActionBar?.hide() call in BattleActivity.onCreate() acts as
+            a secondary safety net in case the theme is ever changed.
+        -->
         <activity
             android:name="com.dungeon.ui.BattleActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:theme="@style/Theme.AppCompat.NoActionBar"/>
 
         <activity
             android:name="com.dungeon.ui.WidgetDialogActivity"
