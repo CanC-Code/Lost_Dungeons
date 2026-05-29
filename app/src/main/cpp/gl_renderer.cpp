@@ -3,6 +3,7 @@
 #include <android/log.h>
 #include <android/native_window.h>
 #include <cmath>
+#include <algorithm>
 
 namespace LostDungeons {
 
@@ -24,20 +25,24 @@ namespace LostDungeons {
     int GLRenderer::width = 0;
     int GLRenderer::height = 0;
 
-    glm::vec3 GLRenderer::cameraPos = glm::vec3(0.0f, 1.7f, 5.0f); // 1.7m Eye Level
+    glm::vec3 GLRenderer::cameraPos = glm::vec3(0.0f, 1.7f, 5.0f);
     glm::vec3 GLRenderer::cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
     glm::vec3 GLRenderer::cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
     float GLRenderer::yaw = -90.0f;
     float GLRenderer::pitch = 0.0f;
 
-    // Default Cache States
     glm::vec3 GLRenderer::savedOverworldPos = glm::vec3(0.0f, 1.7f, 5.0f);
     float GLRenderer::savedOverworldYaw = -90.0f;
     float GLRenderer::savedOverworldPitch = 0.0f;
 
     RenderState GLRenderer::currentState = RenderState::OVERWORLD;
     std::string GLRenderer::activeEntity = "";
+    
+    // Compass Physics Initialization
     bool GLRenderer::compassLockedToNorth = false;
+    float GLRenderer::currentCompassAngle = 0.0f;
+    float GLRenderer::compassVelocity = 0.0f;
+    float GLRenderer::lastFrameTime = 0.0f;
 
     std::chrono::time_point<std::chrono::steady_clock> GLRenderer::startTime;
     std::vector<GLfloat> GLRenderer::terrainVertices;
@@ -57,7 +62,6 @@ namespace LostDungeons {
         if (newState == currentState) return; 
 
         if (newState == RenderState::BATTLE) {
-            // Save precise overworld geometry and looking angles
             savedOverworldPos = cameraPos;
             savedOverworldYaw = yaw;
             savedOverworldPitch = pitch;
@@ -68,7 +72,6 @@ namespace LostDungeons {
             cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
             
         } else if (newState == RenderState::OVERWORLD) {
-            // Seamlessly restore exact previous FOV and orientation
             cameraPos = savedOverworldPos;
             yaw = savedOverworldYaw;
             pitch = savedOverworldPitch;
@@ -102,28 +105,17 @@ namespace LostDungeons {
         glm::vec3 right = glm::normalize(glm::cross(cameraFront, cameraUp));
         glm::vec3 flatFront = glm::normalize(glm::vec3(cameraFront.x, 0.0f, cameraFront.z));
         
-        // Scaled to realistic 1m:1m movement (~6 meters per second walk)
         cameraPos += flatFront * moveY * 0.1f;
         cameraPos += right * moveX * 0.1f;
         
-        // Average human eye height of 1.7 meters
         cameraPos.y = getTerrainHeight(cameraPos.x, cameraPos.z) + 1.7f;
     }
 
-    // 1m:1m Realistic Procedural Topography 
     float GLRenderer::getTerrainHeight(float worldX, float worldZ) {
         float y = 0.0f;
-        
-        // Mountains (Spanning massive distances, peaking at 60m height)
         y += sin(worldX * 0.008f) * cos(worldZ * 0.008f) * 60.0f;
-        
-        // Rolling Hills (Broader, up to 12m high)
         y += sin(worldX * 0.03f + worldZ * 0.02f) * 12.0f;
-        
-        // Ground Noise (~0.5m bumps for texture)
         y += sin(worldX * 0.2f - worldZ * 0.2f) * 0.5f;
-        
-        // Broad Plains Flattening
         if (y < 5.0f) {
             y = 5.0f + (y - 5.0f) * 0.15f;
         }
@@ -134,7 +126,6 @@ namespace LostDungeons {
         terrainVertices.clear();
         terrainIndices.clear();
 
-        // 160 Grid * 2.0 Spacing = 320x320 Meter Draw Area 
         int gridSize = 160; 
         float spacing = 2.0f;
 
@@ -151,9 +142,9 @@ namespace LostDungeons {
                 float fy = getTerrainHeight(worldX, worldZ);
 
                 float r, g, b;
-                if (fy < 6.0f) { r = 0.2f; g = 0.5f; b = 0.2f; }       // Plains
-                else if (fy < 25.0f) { r = 0.45f; g = 0.35f; b = 0.2f; } // Foothills / Rock
-                else { r = 0.9f; g = 0.9f; b = 0.95f; }                // Snowcaps
+                if (fy < 6.0f) { r = 0.2f; g = 0.5f; b = 0.2f; }       
+                else if (fy < 25.0f) { r = 0.45f; g = 0.35f; b = 0.2f; } 
+                else { r = 0.9f; g = 0.9f; b = 0.95f; }                
 
                 float colorNoise = (sin(worldX * 2.0f) * cos(worldZ * 2.0f)) * 0.05f;
                 r += colorNoise; g += colorNoise; b += colorNoise;
@@ -249,7 +240,6 @@ namespace LostDungeons {
     }
 
     void GLRenderer::setupGraphics() {
-        // Core 3D Shaders
         std::string vertSrc = AssetManager::loadTextFile("shaders/base.vert");
         std::string fragSrc = AssetManager::loadTextFile("shaders/base.frag");
         if (vertSrc.empty() || fragSrc.empty()) return;
@@ -272,7 +262,6 @@ namespace LostDungeons {
         skyTopLoc = glGetUniformLocation(shaderProgram, "u_SkyColorTop");
         skyBotLoc = glGetUniformLocation(shaderProgram, "u_SkyColorBottom");
 
-        // UI Orthographic Compass Shaders (Embedded to bypass file I/O constraints)
         const char* uiVertSrc = R"(#version 300 es
             layout(location = 0) in vec2 a_Position;
             layout(location = 1) in vec4 a_Color;
@@ -341,7 +330,7 @@ namespace LostDungeons {
         glUniform3fv(camPosLoc, 1, glm::value_ptr(cameraPos));
 
         float aspect = (float)width / (float)(height > 0 ? height : 1);
-        glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 400.0f); // Pushed Far Plane
+        glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 400.0f); 
 
         glm::vec3 lookTarget = (currentState == RenderState::OVERWORLD) ? 
                                (cameraPos + cameraFront) : glm::vec3(0.0f, getTerrainHeight(0.f, 0.f) + 0.5f, 0.0f);
@@ -355,7 +344,7 @@ namespace LostDungeons {
 
         if (currentState == RenderState::OVERWORLD) {
             drawOverworldFloor();
-            drawCompassHUD(); // Render HUD on top
+            drawCompassHUD(engineTime); 
         } else {
             drawEntityCube();
         }
@@ -402,44 +391,121 @@ namespace LostDungeons {
         glDrawElements(GL_TRIANGLES, 12, GL_UNSIGNED_INT, indices);
     }
 
-    void GLRenderer::drawCompassHUD() {
+    void GLRenderer::drawCompassHUD(float engineTime) {
         if (!uiShaderProgram) return;
 
-        // Strip back 3D states to draw flat 2D HUD element
+        static std::vector<GLfloat> compVerts;
+        static std::vector<GLuint> compIndices;
+        static bool initCompassMesh = false;
+
+        // Procedural Star and Ring Generation (Cached after frame 1)
+        if (!initCompassMesh) {
+            compVerts.insert(compVerts.end(), {0.0f, 0.0f, 0.8f, 0.8f, 0.8f, 1.0f}); // Center Vertex
+            
+            const float PI = 3.14159265359f;
+            int ringSegments = 36;
+            float ringRadius = 1.0f;
+            float ringInnerRadius = 0.85f;
+
+            // 1. Eight-Pointed Star (16 Outer Vertices)
+            for (int i = 0; i < 16; ++i) {
+                float angle = i * (PI * 2.0f / 16.0f) - (PI / 2.0f); // Top is North (-90 deg in 2D)
+                
+                float radius; float r, g, b;
+                
+                if (i == 0) { // North Tip (Red)
+                    radius = 0.8f; r = 0.9f; g = 0.1f; b = 0.1f; 
+                } else if (i % 4 == 0) { // East, South, West Tips (Light Grey)
+                    radius = 0.8f; r = 0.8f; g = 0.8f; b = 0.8f;
+                } else if (i % 2 == 0) { // Ordinal Tips: NE, SE, SW, NW (Mid Grey)
+                    radius = 0.5f; r = 0.6f; g = 0.6f; b = 0.6f;
+                } else { // Inner Valleys (Dark Grey)
+                    radius = 0.2f; r = 0.2f; g = 0.2f; b = 0.2f;
+                }
+
+                compVerts.insert(compVerts.end(), {
+                    cos(angle) * radius, sin(angle) * radius, r, g, b, 1.0f
+                });
+            }
+            
+            for (int i = 1; i <= 16; ++i) {
+                int next = (i == 16) ? 1 : i + 1;
+                compIndices.insert(compIndices.end(), {0, (GLuint)i, (GLuint)next});
+            }
+
+            // 2. Brass Enclosure Ring
+            int ringStartIdx = compVerts.size() / 6;
+            for (int i = 0; i <= ringSegments; ++i) {
+                float angle = i * (PI * 2.0f / ringSegments);
+                
+                // Inner Edge (Dark Brass)
+                compVerts.insert(compVerts.end(), {
+                    cos(angle) * ringInnerRadius, sin(angle) * ringInnerRadius, 0.6f, 0.5f, 0.1f, 1.0f
+                });
+                // Outer Edge (Bright Brass)
+                compVerts.insert(compVerts.end(), {
+                    cos(angle) * ringRadius, sin(angle) * ringRadius, 0.9f, 0.8f, 0.2f, 1.0f
+                });
+            }
+
+            for (int i = 0; i < ringSegments; ++i) {
+                GLuint inner1 = ringStartIdx + (i * 2);
+                GLuint outer1 = inner1 + 1;
+                GLuint inner2 = inner1 + 2;
+                GLuint outer2 = inner1 + 3;
+
+                compIndices.insert(compIndices.end(), {
+                    inner1, outer1, inner2,
+                    outer1, outer2, inner2
+                });
+            }
+            initCompassMesh = true;
+        }
+
         glDisable(GL_DEPTH_TEST);
         glUseProgram(uiShaderProgram);
 
         glm::mat4 projection = glm::ortho(0.0f, (float)width, (float)height, 0.0f, -1.0f, 1.0f);
-        glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(100.0f, 100.0f, 0.0f));
+        glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(120.0f, 120.0f, 0.0f));
 
-        // -Z is mathematically North. Yaw of -90 faces North.
-        float compassAngle = 0.0f;
-        if (!compassLockedToNorth) {
-            compassAngle = glm::radians(yaw + 90.0f); // Spin relative to FOV
+        // --- Realistic Spring Physics Simulation ---
+        float targetAngle = compassLockedToNorth ? 0.0f : glm::radians(yaw + 90.0f);
+        
+        float dt = engineTime - lastFrameTime;
+        if (dt > 0.0f) {
+            if (dt > 0.1f) dt = 0.1f; // Prevent explosive physics jumps if frame drops
+            
+            float diff = targetAngle - currentCompassAngle;
+            
+            // Normalize difference to ensure it always rotates the shortest direction
+            while (diff > M_PI) diff -= 2.0f * M_PI;
+            while (diff < -M_PI) diff += 2.0f * M_PI;
+            
+            float springTension = 30.0f;
+            float damping = 3.5f;
+            
+            compassVelocity += (diff * springTension - compassVelocity * damping) * dt;
+            currentCompassAngle += compassVelocity * dt;
+            lastFrameTime = engineTime;
         }
 
-        model = glm::rotate(model, compassAngle, glm::vec3(0.0f, 0.0f, 1.0f));
-        model = glm::scale(model, glm::vec3(40.0f, 40.0f, 1.0f)); 
+        // Apply a high-frequency tremor to the needle based on its rotational velocity
+        float wobble = sin(engineTime * 35.0f) * 0.015f * std::min(std::abs(compassVelocity), 3.0f);
+        float finalAngle = currentCompassAngle + wobble;
+
+        model = glm::rotate(model, finalAngle, glm::vec3(0.0f, 0.0f, 1.0f));
+        model = glm::scale(model, glm::vec3(60.0f, 60.0f, 1.0f)); // Slightly larger to show off the details
 
         glm::mat4 mvp = projection * model;
         glUniformMatrix4fv(uiMvpLoc, 1, GL_FALSE, glm::value_ptr(mvp));
 
-        // Diamond Pointer Mesh: Top is Red (North), Bottom is Grey (South)
-        GLfloat vertices[] = {
-             0.0f, -1.0f,   1.0f, 0.1f, 0.1f, 1.0f, // North Tip
-            -0.4f,  0.0f,   0.7f, 0.7f, 0.7f, 1.0f, // Left Anchor
-             0.4f,  0.0f,   0.5f, 0.5f, 0.5f, 1.0f, // Right Anchor
-             0.0f,  1.0f,   0.9f, 0.9f, 0.9f, 1.0f  // South Tip
-        };
-        GLuint indices[] = { 0, 1, 2,  1, 3, 2 };
-
-        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), vertices);
-        glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), vertices + 2);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), compVerts.data());
+        glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), compVerts.data() + 2);
         glEnableVertexAttribArray(0);
         glEnableVertexAttribArray(1);
 
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, indices);
+        glDrawElements(GL_TRIANGLES, compIndices.size(), GL_UNSIGNED_INT, compIndices.data());
 
-        glEnable(GL_DEPTH_TEST); // Re-arm depth tests for the next 3D frame
+        glEnable(GL_DEPTH_TEST);
     }
 }
