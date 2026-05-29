@@ -45,46 +45,62 @@ namespace LostDungeons {
         static void drawCompassHUD(float engineTime);
         static void drawMenuOverlay();
 
+        // --- Rendering State ---
         static std::atomic<bool> isRendering;
         static std::thread renderThread;
         static std::mutex stateMutex;
 
+        // --- EGL State ---
         static EGLDisplay display;
         static EGLSurface surface;
         static EGLContext context;
         static GLuint shaderProgram;
         static GLuint uiShaderProgram;
 
+        // --- Shader Locations ---
         static GLint mvpLoc, modelLoc, timeLoc, camPosLoc;
         static GLint lightDirLoc, lightColLoc, ambColLoc;
         static GLint skyTopLoc, skyBotLoc;
         static GLint uiMvpLoc;
 
+        // --- Viewport ---
         static int width;
         static int height;
 
+        // --- Camera State ---
         static glm::vec3 cameraPos;
         static glm::vec3 cameraFront;
         static glm::vec3 cameraUp;
         static float yaw;
         static float pitch;
 
+        // --- Smoothing Variables ---
+        static glm::vec3 targetCameraPos;
+        static glm::vec3 currentCameraPos;
+        static glm::vec3 cameraVelocity;
+        static float cameraSmoothTime;
+
+        // --- Saved State ---
         static glm::vec3 savedOverworldPos;
         static float savedOverworldYaw;
         static float savedOverworldPitch;
 
+        // --- Game State ---
         static RenderState currentState;
         static std::string activeEntity;
 
-        static bool  compassLockedToNorth;
+        // --- Compass State ---
+        static bool compassLockedToNorth;
         static float currentCompassAngle;
         static float compassVelocity;
         static float lastFrameTime;
 
+        // --- Time ---
         static std::chrono::time_point<std::chrono::steady_clock> startTime;
 
+        // --- Terrain State ---
         static std::vector<GLfloat> terrainVertices;
-        static std::vector<GLuint>  terrainIndices;
+        static std::vector<GLuint> terrainIndices;
         static int lastGridX;
         static int lastGridZ;
     };
