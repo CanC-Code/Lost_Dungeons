@@ -1,103 +1,137 @@
-#ifndef GL_RENDERER_H
-#define GL_RENDERER_H
+﻿2026-05-29T19:21:46.1442861Z ##[group]Run ./gradlew assembleDebug
+./gradlew assembleDebug
+shell: /usr/bin/bash -e {0}
+env:
+  JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.19-10/x64
+  JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.19-10/x64
+Fetching distribution.
+Downloading https://services.gradle.org/distributions/gradle-8.7-bin.zip
+............10%.............20%.............30%.............40%............50%.............60%.............70%.............80%.............90%............100%
 
-#include <GLES3/gl3.h>
-#include <EGL/egl.h>
-#include <android/native_window.h>
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-#include <thread>
-#include <mutex>
-#include <atomic>
-#include <chrono>
-#include <vector>
-#include <string>
+Welcome to Gradle 8.7!
 
-namespace LostDungeons {
+Here are the highlights of this release:
+ - Compiling and testing with Java 22
+ - Cacheable Groovy script compilation
+ - New methods in lazy collection properties
 
-    enum class RenderState { OVERWORLD, BATTLE, MENU };
+For more details see https://docs.gradle.org/8.7/release-notes.html
 
-    class GLRenderer {
-    public:
-        static void start(ANativeWindow* window);
-        static void stop();
-        static void setViewport(int w, int h);
-        static void setGameState(int state, const std::string& entityId);
-        static void updateInput(float moveX, float moveY, float lookX, float lookY);
-        static void toggleCompassMode();
-        static void handleTap(float screenX, float screenY);
+Starting a Gradle Daemon (subsequent builds will be faster)
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :app:checkKotlinGradlePluginConfigurationErrors
+> Task :app:generateDebugResValues
+> Task :app:checkDebugAarMetadata
+> Task :app:mapDebugSourceSetPaths
+> Task :app:generateDebugResources
+> Task :app:packageDebugResources
+> Task :app:mergeDebugResources
+> Task :app:createDebugCompatibleScreenManifests
+> Task :app:extractDeepLinksDebug
+> Task :app:parseDebugLocalResources
+> Task :app:processDebugMainManifest
+> Task :app:processDebugManifest
+> Task :app:processDebugManifestForPackage
+> Task :app:javaPreCompileDebug
+> Task :app:mergeDebugShaders
+> Task :app:compileDebugShaders NO-SOURCE
+> Task :app:generateDebugAssets UP-TO-DATE
+> Task :app:mergeDebugAssets
+> Task :app:desugarDebugFileDependencies
+> Task :app:compressDebugAssets
+> Task :app:processDebugResources
+> Task :app:checkDebugDuplicateClasses
+> Task :app:mergeDebugStartupProfile
+> Task :app:kaptGenerateStubsDebugKotlin
+> Task :app:mergeLibDexDebug
+> Task :app:mergeExtDexDebug
 
-    private:
-        static void renderLoop(ANativeWindow* window);
-        static bool initEGL(ANativeWindow* window);
-        static void destroyEGL();
-        static void setupGraphics();
-        static GLuint loadShader(GLenum type, const char* src);
-        static void drawFrame();
-        
-        static void updateTerrainMesh();
-        static float getTerrainHeight(float worldX, float worldZ);
-        
-        static void drawOverworldFloor();
-        static void drawEntityCube();
-        
-        // Refactored 2D UI Pass functions
-        static void drawCompassHUD(float engineTime, const glm::mat4& proj);
-        static void drawMenuButton(const glm::mat4& proj);
-        static void drawMenuOverlay(const glm::mat4& proj);
+> Task :app:configureCMakeDebug[arm64-v8a]
+Checking the license for package CMake 3.22.1 in /usr/local/lib/android/sdk/licenses
+License for package CMake 3.22.1 accepted.
+Preparing "Install CMake 3.22.1 v.3.22.1".
 
-        static std::atomic<bool> isRendering;
-        static std::thread renderThread;
-        static std::mutex stateMutex;
+> Task :app:kaptDebugKotlin
 
-        static EGLDisplay display;
-        static EGLSurface surface;
-        static EGLContext context;
-        static GLuint shaderProgram;
-        static GLuint uiShaderProgram;
+> Task :app:configureCMakeDebug[arm64-v8a]
+"Install CMake 3.22.1 v.3.22.1" ready.
+Installing CMake 3.22.1 in /usr/local/lib/android/sdk/cmake/3.22.1
+"Install CMake 3.22.1 v.3.22.1" complete.
+"Install CMake 3.22.1 v.3.22.1" finished.
 
-        static GLint mvpLoc, modelLoc, timeLoc, camPosLoc;
-        static GLint lightDirLoc, lightColLoc, ambColLoc;
-        static GLint skyTopLoc, skyBotLoc;
-        static GLint uiMvpLoc;
+> Task :app:buildCMakeDebug[arm64-v8a]
+C/C++: ninja: Entering directory `/home/runner/work/Lost_Dungeons/Lost_Dungeons/app/.cxx/Debug/2o27371v/arm64-v8a'
+C/C++: /usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++ --target=aarch64-none-linux-android26 --sysroot=/usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot -Dengine_EXPORTS -I/home/runner/work/Lost_Dungeons/Lost_Dungeons/app/.cxx/Debug/2o27371v/arm64-v8a/_deps/json-src/include -I/home/runner/work/Lost_Dungeons/Lost_Dungeons/app/.cxx/Debug/2o27371v/arm64-v8a/_deps/glm-src/glm/.. -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -std=c++17 -fno-limit-debug-info  -fPIC -MD -MT CMakeFiles/engine.dir/gl_renderer.cpp.o -MF CMakeFiles/engine.dir/gl_renderer.cpp.o.d -o CMakeFiles/engine.dir/gl_renderer.cpp.o -c /home/runner/work/Lost_Dungeons/Lost_Dungeons/app/src/main/cpp/gl_renderer.cpp
+C/C++: /home/runner/work/Lost_Dungeons/Lost_Dungeons/app/src/main/cpp/gl_renderer.cpp:399:38: error: too few arguments to function call, expected 2, have 1
+C/C++:             drawCompassHUD(engineTime);
+C/C++:             ~~~~~~~~~~~~~~           ^
+C/C++: /home/runner/work/Lost_Dungeons/Lost_Dungeons/app/src/main/cpp/gl_renderer.h:46:21: note: 'drawCompassHUD' declared here
+C/C++:         static void drawCompassHUD(float engineTime, const glm::mat4& proj);
+C/C++:                     ^
+C/C++: /home/runner/work/Lost_Dungeons/Lost_Dungeons/app/src/main/cpp/gl_renderer.cpp:406:29: error: too few arguments to function call, single argument 'proj' was not specified
+C/C++:             drawMenuOverlay();
+C/C++:             ~~~~~~~~~~~~~~~ ^
+C/C++: /home/runner/work/Lost_Dungeons/Lost_Dungeons/app/src/main/cpp/gl_renderer.h:48:21: note: 'drawMenuOverlay' declared here
+C/C++:         static void drawMenuOverlay(const glm::mat4& proj);
+C/C++:                     ^
+C/C++: /home/runner/work/Lost_Dungeons/Lost_Dungeons/app/src/main/cpp/gl_renderer.cpp:458:22: error: out-of-line definition of 'drawCompassHUD' does not match any declaration in 'LostDungeons::GLRenderer'
+C/C++:     void GLRenderer::drawCompassHUD(float engineTime) {
+C/C++:                      ^~~~~~~~~~~~~~
+C/C++: /home/runner/work/Lost_Dungeons/Lost_Dungeons/app/src/main/cpp/gl_renderer.cpp:581:22: error: out-of-line definition of 'drawMenuOverlay' does not match any declaration in 'LostDungeons::GLRenderer'
+C/C++:     void GLRenderer::drawMenuOverlay() {
+C/C++:                      ^~~~~~~~~~~~~~~
+C/C++: 4 errors generated.
 
-        static int width;
-        static int height;
+> Task :app:buildCMakeDebug[arm64-v8a] FAILED
 
-        // Dynamic UI Layout Trackers (Prevents Hitbox Desync)
-        static float compassX, compassY, compassRadius;
-        static float menuBtnX, menuBtnY, menuBtnRadius;
+> Task :app:compileDebugKotlin
+FAILURE: Build failed with an exception.
+28 actionable tasks: 28 executed
 
-        // Active Camera State
-        static glm::vec3 cameraPos;
-        static glm::vec3 cameraFront;
-        static glm::vec3 cameraUp;
-        static float yaw;
-        static float pitch;
+* What went wrong:
+Execution failed for task ':app:buildCMakeDebug[arm64-v8a]'.
+> com.android.ide.common.process.ProcessException: ninja: Entering directory `/home/runner/work/Lost_Dungeons/Lost_Dungeons/app/.cxx/Debug/2o27371v/arm64-v8a'
+  [1/5] Building CXX object CMakeFiles/engine.dir/engine_core.cpp.o
+  [2/5] Building CXX object CMakeFiles/engine.dir/gl_renderer.cpp.o
+  FAILED: CMakeFiles/engine.dir/gl_renderer.cpp.o 
+  /usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++ --target=aarch64-none-linux-android26 --sysroot=/usr/local/lib/android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot -Dengine_EXPORTS -I/home/runner/work/Lost_Dungeons/Lost_Dungeons/app/.cxx/Debug/2o27371v/arm64-v8a/_deps/json-src/include -I/home/runner/work/Lost_Dungeons/Lost_Dungeons/app/.cxx/Debug/2o27371v/arm64-v8a/_deps/glm-src/glm/.. -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -std=c++17 -fno-limit-debug-info  -fPIC -MD -MT CMakeFiles/engine.dir/gl_renderer.cpp.o -MF CMakeFiles/engine.dir/gl_renderer.cpp.o.d -o CMakeFiles/engine.dir/gl_renderer.cpp.o -c /home/runner/work/Lost_Dungeons/Lost_Dungeons/app/src/main/cpp/gl_renderer.cpp
+  /home/runner/work/Lost_Dungeons/Lost_Dungeons/app/src/main/cpp/gl_renderer.cpp:399:38: error: too few arguments to function call, expected 2, have 1
+              drawCompassHUD(engineTime);
+              ~~~~~~~~~~~~~~           ^
+  /home/runner/work/Lost_Dungeons/Lost_Dungeons/app/src/main/cpp/gl_renderer.h:46:21: note: 'drawCompassHUD' declared here
+          static void drawCompassHUD(float engineTime, const glm::mat4& proj);
+                      ^
+  /home/runner/work/Lost_Dungeons/Lost_Dungeons/app/src/main/cpp/gl_renderer.cpp:406:29: error: too few arguments to function call, single argument 'proj' was not specified
+              drawMenuOverlay();
+              ~~~~~~~~~~~~~~~ ^
+  /home/runner/work/Lost_Dungeons/Lost_Dungeons/app/src/main/cpp/gl_renderer.h:48:21: note: 'drawMenuOverlay' declared here
+          static void drawMenuOverlay(const glm::mat4& proj);
+                      ^
+  /home/runner/work/Lost_Dungeons/Lost_Dungeons/app/src/main/cpp/gl_renderer.cpp:458:22: error: out-of-line definition of 'drawCompassHUD' does not match any declaration in 'LostDungeons::GLRenderer'
+      void GLRenderer::drawCompassHUD(float engineTime) {
+                       ^~~~~~~~~~~~~~
+  /home/runner/work/Lost_Dungeons/Lost_Dungeons/app/src/main/cpp/gl_renderer.cpp:581:22: error: out-of-line definition of 'drawMenuOverlay' does not match any declaration in 'LostDungeons::GLRenderer'
+      void GLRenderer::drawMenuOverlay() {
+                       ^~~~~~~~~~~~~~~
+  4 errors generated.
+  [3/5] Building CXX object CMakeFiles/engine.dir/asset_manager.cpp.o
+  [4/5] Building CXX object CMakeFiles/engine.dir/jni_bridge.cpp.o
+  ninja: build stopped: subcommand failed.
+  
+  C++ build system [build] failed while executing:
+      /usr/local/lib/android/sdk/cmake/3.22.1/bin/ninja \
+        -C \
+        /home/runner/work/Lost_Dungeons/Lost_Dungeons/app/.cxx/Debug/2o27371v/arm64-v8a \
+        engine
+    from /home/runner/work/Lost_Dungeons/Lost_Dungeons/app
 
-        // Cached Overworld State
-        static glm::vec3 savedOverworldPos;
-        static float savedOverworldYaw;
-        static float savedOverworldPitch;
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
 
-        static RenderState currentState;
-        static std::string activeEntity;
-        
-        // Physics-Based Compass State
-        static bool compassLockedToNorth;
-        static float currentCompassAngle;
-        static float compassVelocity;
-        static float lastFrameTime;
-
-        static std::chrono::time_point<std::chrono::steady_clock> startTime;
-        
-        static std::vector<GLfloat> terrainVertices;
-        static std::vector<GLuint> terrainIndices;
-        static int lastGridX;
-        static int lastGridZ;
-    };
-
-}
-
-#endif // GL_RENDERER_H
+BUILD FAILED in 1m 31s
+Process completed with exit code 1.
