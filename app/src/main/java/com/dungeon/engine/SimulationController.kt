@@ -3,6 +3,14 @@ package com.dungeon.engine
 import android.content.res.AssetManager
 import android.view.Surface
 
+// Data class mapping the C++ IntArray back to Kotlin properties
+data class SimulationResult(
+    val finalFloor: Int,
+    val finalHp: Int,
+    val enemiesDefeated: Int,
+    val partyDied: Boolean
+)
+
 class SimulationController {
     
     companion object {
@@ -26,4 +34,17 @@ class SimulationController {
     external fun nativeUpdateInput(moveX: Float, moveY: Float, lookX: Float, lookY: Float)
     external fun nativeToggleCompass()
     external fun nativeHandleTap(x: Float, y: Float)
+
+    // --- Kotlin Wrappers ---
+    // Safely bridges the DungeonWorker inputs to the native array outputs
+    fun executeTick(deltaSeconds: Long, currentFloor: Int, currentHp: Int, attackStat: Int): SimulationResult {
+        val rawResult = nativeRunSimulation(deltaSeconds, currentFloor, currentHp, attackStat)
+        
+        return SimulationResult(
+            finalFloor = rawResult[0],
+            finalHp = rawResult[1],
+            enemiesDefeated = rawResult[2],
+            partyDied = rawResult[3] == 1
+        )
+    }
 }
