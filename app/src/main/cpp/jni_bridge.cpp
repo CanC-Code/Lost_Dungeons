@@ -71,11 +71,19 @@ Java_com_dungeon_engine_SimulationController_nativeUpdateInput(
     LostDungeons::GLRenderer::updateInput(moveX, moveY, lookX, lookY);
 }
 
+// Interaction Endpoint: Tap Routing
+extern "C" JNIEXPORT void JNICALL
+Java_com_dungeon_engine_SimulationController_nativeHandleTap(
+        JNIEnv* env, jobject /* this */, jfloat x, jfloat y) {
+    
+    LostDungeons::GLRenderer::handleTap(x, y);
+}
+
 // UI Hook: Toggle Compass Orientation Mode
 extern "C" JNIEXPORT void JNICALL
 Java_com_dungeon_engine_SimulationController_nativeToggleCompass(
         JNIEnv* env, jobject /* this */) {
-    
+
     LostDungeons::GLRenderer::toggleCompassMode();
 }
 
