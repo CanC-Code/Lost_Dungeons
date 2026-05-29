@@ -8,6 +8,7 @@
         android:label="@string/app_name"
         android:theme="@style/Theme.AppCompat.Light">
 
+        <!-- Intro Activity (Launch Screen) -->
         <activity
             android:name="com.dungeon.ui.IntroActivity"
             android:exported="true">
@@ -17,17 +18,25 @@
             </intent-filter>
         </activity>
 
-        <!--
-            FIX: BattleActivity now declares Theme.AppCompat.NoActionBar so the
-            "Lost Dungeons" title bar is never inflated by the framework at all.
-            The supportActionBar?.hide() call in BattleActivity.onCreate() acts as
-            a secondary safety net in case the theme is ever changed.
-        -->
+        <!-- Main Game Activity -->
         <activity
             android:name="com.dungeon.ui.BattleActivity"
             android:exported="false"
-            android:theme="@style/Theme.AppCompat.NoActionBar"/>
+            android:theme="@style/Theme.AppCompat.NoActionBar" />
 
+        <!-- Inventory Activity -->
+        <activity
+            android:name="com.dungeon.ui.InventoryActivity"
+            android:exported="false"
+            android:theme="@style/Theme.AppCompat.NoActionBar" />
+
+        <!-- Team Activity -->
+        <activity
+            android:name="com.dungeon.ui.TeamActivity"
+            android:exported="false"
+            android:theme="@style/Theme.AppCompat.NoActionBar" />
+
+        <!-- Widget Dialog Activity -->
         <activity
             android:name="com.dungeon.ui.WidgetDialogActivity"
             android:theme="@style/Theme.Transparent.Dialog"
@@ -35,6 +44,12 @@
             android:excludeFromRecents="true"
             android:taskAffinity="" />
 
+        <!-- Main Activity (Placeholder) -->
+        <activity
+            android:name="com.dungeon.ui.MainActivity"
+            android:exported="false" />
+
+        <!-- Widget Provider -->
         <receiver
             android:name="com.dungeon.widget.DungeonWidgetProvider"
             android:exported="true">
@@ -45,6 +60,5 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/dungeon_widget_info" />
         </receiver>
-
     </application>
 </manifest>
