@@ -565,41 +565,4 @@ namespace LostDungeons {
         glDrawElements(GL_TRIANGLES, (GLsizei)compIndices.size(), GL_UNSIGNED_INT, compIndices.data());
 
         // Recalculate timeOfDayAngle for the clock diamond
-        float timeOfDayAngle = (engineTime / 3000.0f) * 3.14159265f * 2.0f;
-        float sunX = cos(timeOfDayAngle) * 78.0f;
-        float sunY = -sin(timeOfDayAngle) * 78.0f;
-        glm::mat4 clockModel = glm::translate(baseCompassModel, glm::vec3(sunX, sunY, 0.0f));
-        clockModel = glm::scale(clockModel, glm::vec3(12.0f, 12.0f, 1.0f));
-        glm::mat4 clockMvp = projection * clockModel;
-        glUniformMatrix4fv(uiMvpLoc, 1, GL_FALSE, glm::value_ptr(clockMvp));
-
-        GLfloat clockVerts[] = {
-            0.0f, -1.0f, 1.0f, 0.9f, 0.2f, 1.0f,
-            -1.0f, 0.0f, 1.0f, 0.8f, 0.1f, 1.0f,
-            1.0f, 0.0f, 1.0f, 0.8f, 0.1f, 1.0f,
-            0.0f, 1.0f, 1.0f, 0.9f, 0.2f, 1.0f
-        };
-        GLuint clockInds[] = { 0, 1, 2, 1, 3, 2 };
-
-        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), clockVerts);
-        glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), clockVerts + 2);
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, clockInds);
-
-        glEnable(GL_DEPTH_TEST);
-    }
-
-    void GLRenderer::drawMenuOverlay() {
-        if (!uiShaderProgram) return;
-
-        glDisable(GL_DEPTH_TEST);
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        glUseProgram(uiShaderProgram);
-
-        glm::mat4 projection = glm::ortho(0.0f, (float)width, (float)height, 0.0f, -1.0f, 1.0f);
-        glUniformMatrix4fv(uiMvpLoc, 1, GL_FALSE, glm::value_ptr(projection));
-
-        // 70% opacity black quad to dim the 3D scene
-        GLfloat vertices[] = {
-            0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.7f,
-            (float)width, 0
+        float timeOfDayAngle = (engineTime / 3000.0f) * 3
