@@ -1,17 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
     activity_battle.xml — Full-screen gameplay layout.
-
     Layer order (back to front):
       1. render_surface   — full-screen OpenGL ES surface (compass drawn natively inside)
       2. touch_overlay    — transparent, captures joystick + swipe-look input in OVERWORLD
       3. btn_ingame_menu  — hamburger icon, top-right corner, always visible in OVERWORLD/MENU
       4. tv_environment_info — path/floor/name HUD, hidden by default, shown when menu opens
-      5. layout_enemy_status — enemy HP bar, shown during BATTLE
-      6. layout_battle_hud   — battle action buttons, shown during BATTLE
-
-    NOTE: The ActionBar is hidden programmatically in BattleActivity.onCreate() so the
-          "Lost Dungeons" title bar does not appear above this layout.
+      5. layout_menu_buttons — Inventory/Team buttons, bottom-left corner
+      6. layout_enemy_status — enemy HP bar, shown during BATTLE
+      7. layout_battle_hud   — battle action buttons, shown during BATTLE
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -23,7 +20,7 @@
     <SurfaceView
         android:id="@+id/render_surface"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"/>
+        android:layout_height="match_parent" />
 
     <!-- Layer 2: Transparent multi-touch overlay for joystick + camera look -->
     <FrameLayout
@@ -41,7 +38,7 @@
             app:cardCornerRadius="60dp"
             app:cardBackgroundColor="#44000000"
             app:cardElevation="0dp"
-            android:visibility="invisible"/>
+            android:visibility="invisible" />
 
         <!-- Left joystick thumb knob -->
         <androidx.cardview.widget.CardView
@@ -51,14 +48,10 @@
             app:cardCornerRadius="25dp"
             app:cardBackgroundColor="#CCFFFFFF"
             app:cardElevation="2dp"
-            android:visibility="invisible"/>
+            android:visibility="invisible" />
     </FrameLayout>
 
-    <!--
-        Layer 3: In-game menu button — top-right corner, always visible during OVERWORLD.
-        Tapping toggles nativeSetGameState(2,"") / nativeSetGameState(0,"").
-        Uses three horizontal bars (≡) as the icon text for zero-asset dependency.
-    -->
+    <!-- Layer 3: In-game menu button (top-right) -->
     <FrameLayout
         android:id="@+id/btn_ingame_menu"
         android:layout_width="48dp"
@@ -78,14 +71,10 @@
             android:text="≡"
             android:textColor="#FFFFFF"
             android:textSize="22sp"
-            android:textStyle="bold"/>
+            android:textStyle="bold" />
     </FrameLayout>
 
-    <!--
-        Layer 4: Environment info HUD — hidden by default; shown when menu is open.
-        Positioned below the compass (≥ 150dp from top) so it never overlaps it.
-        The compass is drawn natively at (75, 75) with a 60px radius → outer edge ~135px from top.
-    -->
+    <!-- Layer 4: Environment info HUD (shown when menu is open) -->
     <TextView
         android:id="@+id/tv_environment_info"
         android:layout_width="match_parent"
@@ -99,9 +88,38 @@
         android:textColor="#FFFFFF"
         android:textStyle="bold"
         android:text="Path: Forest | Floor: 1 | Link"
-        android:visibility="gone"/>
+        android:visibility="gone" />
 
-    <!-- Layer 5: Enemy HP status — shown during BATTLE only -->
+    <!-- Layer 5: Menu Buttons (Inventory & Team) - Bottom-left corner -->
+    <LinearLayout
+        android:id="@+id/layout_menu_buttons"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|start"
+        android:layout_margin="8dp"
+        android:orientation="vertical">
+
+        <Button
+            android:id="@+id/btn_inventory"
+            android:layout_width="120dp"
+            android:layout_height="48dp"
+            android:text="Inventory"
+            android:backgroundTint="#00838F"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/btn_team"
+            android:layout_width="120dp"
+            android:layout_height="48dp"
+            android:layout_marginTop="4dp"
+            android:text="Team"
+            android:backgroundTint="#00838F"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <!-- Layer 6: Enemy HP status (shown during BATTLE) -->
     <LinearLayout
         android:id="@+id/layout_enemy_status"
         android:layout_width="180dp"
@@ -120,7 +138,7 @@
             android:textColor="#FF5252"
             android:textStyle="bold"
             android:text="Wild Beast"
-            android:layout_marginBottom="4dp"/>
+            android:layout_marginBottom="4dp" />
 
         <FrameLayout
             android:layout_width="match_parent"
@@ -134,11 +152,11 @@
                 android:progressTint="#FF5252"
                 android:progressBackgroundTint="@android:color/transparent"
                 android:max="100"
-                android:progress="100"/>
+                android:progress="100" />
         </FrameLayout>
     </LinearLayout>
 
-    <!-- Layer 6: Battle action HUD — anchored to bottom, shown during BATTLE only -->
+    <!-- Layer 7: Battle action HUD (shown during BATTLE) -->
     <LinearLayout
         android:id="@+id/layout_battle_hud"
         android:layout_width="match_parent"
@@ -163,7 +181,7 @@
                 android:layout_height="wrap_content"
                 android:textColor="#00E5FF"
                 android:text="Hero HP: "
-                android:textStyle="bold"/>
+                android:textStyle="bold" />
 
             <FrameLayout
                 android:layout_width="match_parent"
@@ -175,7 +193,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:progressTint="#00E5FF"
-                    android:progressBackgroundTint="@android:color/transparent"/>
+                    android:progressBackgroundTint="@android:color/transparent" />
             </FrameLayout>
         </LinearLayout>
 
@@ -185,7 +203,7 @@
             android:layout_width="match_parent"
             android:layout_height="100dp"
             android:background="#121212"
-            android:layout_marginBottom="12dp"/>
+            android:layout_marginBottom="12dp" />
 
         <!-- Primary action row: FIGHT | MAGIC | EVADE -->
         <LinearLayout
@@ -200,7 +218,7 @@
                 android:layout_weight="1"
                 android:text="FIGHT"
                 android:backgroundTint="#B71C1C"
-                android:layout_marginEnd="4dp"/>
+                android:layout_marginEnd="4dp" />
 
             <Button
                 android:id="@+id/btn_magic"
@@ -209,7 +227,7 @@
                 android:layout_weight="1"
                 android:text="MAGIC"
                 android:backgroundTint="#0D47A1"
-                android:layout_marginEnd="4dp"/>
+                android:layout_marginEnd="4dp" />
 
             <FrameLayout
                 android:layout_width="0dp"
@@ -222,7 +240,7 @@
                     android:text="EVADE!"
                     android:backgroundTint="#F57F17"
                     android:textColor="#000000"
-                    android:textStyle="bold"/>
+                    android:textStyle="bold" />
                 <ProgressBar
                     android:id="@+id/pb_evade_timer"
                     style="?android:attr/progressBarStyleHorizontal"
@@ -232,7 +250,7 @@
                     android:progressTint="#FFFFFF"
                     android:progressBackgroundTint="@android:color/transparent"
                     android:visibility="invisible"
-                    android:max="100"/>
+                    android:max="100" />
             </FrameLayout>
         </LinearLayout>
 
@@ -250,7 +268,7 @@
                 android:layout_weight="1"
                 android:text="ITEM"
                 android:backgroundTint="#1B5E20"
-                android:layout_marginEnd="4dp"/>
+                android:layout_marginEnd="4dp" />
 
             <Button
                 android:id="@+id/btn_run"
@@ -258,8 +276,7 @@
                 android:layout_height="55dp"
                 android:layout_weight="1"
                 android:text="RUN"
-                android:backgroundTint="#E65100"/>
+                android:backgroundTint="#E65100" />
         </LinearLayout>
     </LinearLayout>
-
 </FrameLayout>
