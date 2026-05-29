@@ -1,22 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    activity_battle.xml — Full-screen gameplay layout.
+
+    Layer order (back to front):
+      1. render_surface   — full-screen OpenGL ES surface (compass drawn natively inside)
+      2. touch_overlay    — transparent, captures joystick + swipe-look input in OVERWORLD
+      3. btn_ingame_menu  — hamburger icon, top-right corner, always visible in OVERWORLD/MENU
+      4. tv_environment_info — path/floor/name HUD, hidden by default, shown when menu opens
+      5. layout_enemy_status — enemy HP bar, shown during BATTLE
+      6. layout_battle_hud   — battle action buttons, shown during BATTLE
+
+    NOTE: The ActionBar is hidden programmatically in BattleActivity.onCreate() so the
+          "Lost Dungeons" title bar does not appear above this layout.
+-->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#000000">
 
+    <!-- Layer 1: Native OpenGL ES render surface (fills entire screen) -->
     <SurfaceView
         android:id="@+id/render_surface"
         android:layout_width="match_parent"
         android:layout_height="match_parent"/>
 
+    <!-- Layer 2: Transparent multi-touch overlay for joystick + camera look -->
     <FrameLayout
         android:id="@+id/touch_overlay"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:clickable="true"
         android:focusable="true">
-        
+
+        <!-- Left joystick base (appears dynamically where finger lands) -->
         <androidx.cardview.widget.CardView
             android:id="@+id/joystick_base"
             android:layout_width="120dp"
@@ -24,9 +41,9 @@
             app:cardCornerRadius="60dp"
             app:cardBackgroundColor="#44000000"
             app:cardElevation="0dp"
-            android:visibility="invisible">
-        </androidx.cardview.widget.CardView>
+            android:visibility="invisible"/>
 
+        <!-- Left joystick thumb knob -->
         <androidx.cardview.widget.CardView
             android:id="@+id/joystick_thumb"
             android:layout_width="50dp"
@@ -34,20 +51,57 @@
             app:cardCornerRadius="25dp"
             app:cardBackgroundColor="#CCFFFFFF"
             app:cardElevation="2dp"
-            android:visibility="invisible">
-        </androidx.cardview.widget.CardView>
+            android:visibility="invisible"/>
     </FrameLayout>
 
+    <!--
+        Layer 3: In-game menu button — top-right corner, always visible during OVERWORLD.
+        Tapping toggles nativeSetGameState(2,"") / nativeSetGameState(0,"").
+        Uses three horizontal bars (≡) as the icon text for zero-asset dependency.
+    -->
+    <FrameLayout
+        android:id="@+id/btn_ingame_menu"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="8dp"
+        android:background="#88000000"
+        android:clickable="true"
+        android:focusable="true"
+        android:contentDescription="Menu">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="≡"
+            android:textColor="#FFFFFF"
+            android:textSize="22sp"
+            android:textStyle="bold"/>
+    </FrameLayout>
+
+    <!--
+        Layer 4: Environment info HUD — hidden by default; shown when menu is open.
+        Positioned below the compass (≥ 150dp from top) so it never overlaps it.
+        The compass is drawn natively at (75, 75) with a 60px radius → outer edge ~135px from top.
+    -->
     <TextView
         android:id="@+id/tv_environment_info"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="#88000000"
+        android:layout_gravity="top"
+        android:layout_marginTop="150dp"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="56dp"
+        android:background="#BB000000"
         android:padding="8dp"
         android:textColor="#FFFFFF"
         android:textStyle="bold"
-        android:text="Path: Mountains | Level: 1"/>
+        android:text="Path: Forest | Floor: 1 | Link"
+        android:visibility="gone"/>
 
+    <!-- Layer 5: Enemy HP status — shown during BATTLE only -->
     <LinearLayout
         android:id="@+id/layout_enemy_status"
         android:layout_width="180dp"
@@ -58,7 +112,7 @@
         android:background="#AA000000"
         android:padding="8dp"
         android:visibility="gone">
-        
+
         <TextView
             android:id="@+id/tv_enemy_name"
             android:layout_width="wrap_content"
@@ -67,7 +121,7 @@
             android:textStyle="bold"
             android:text="Wild Beast"
             android:layout_marginBottom="4dp"/>
-            
+
         <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="12dp"
@@ -84,6 +138,7 @@
         </FrameLayout>
     </LinearLayout>
 
+    <!-- Layer 6: Battle action HUD — anchored to bottom, shown during BATTLE only -->
     <LinearLayout
         android:id="@+id/layout_battle_hud"
         android:layout_width="match_parent"
@@ -94,13 +149,14 @@
         android:padding="12dp"
         android:visibility="gone">
 
+        <!-- Player HP bar row -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:layout_marginBottom="12dp"
             android:gravity="center_vertical">
-            
+
             <TextView
                 android:id="@+id/tv_player_hp_text"
                 android:layout_width="100dp"
@@ -108,7 +164,7 @@
                 android:textColor="#00E5FF"
                 android:text="Hero HP: "
                 android:textStyle="bold"/>
-                
+
             <FrameLayout
                 android:layout_width="match_parent"
                 android:layout_height="16dp"
@@ -123,6 +179,7 @@
             </FrameLayout>
         </LinearLayout>
 
+        <!-- Combat log -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rv_combat_log"
             android:layout_width="match_parent"
@@ -130,11 +187,12 @@
             android:background="#121212"
             android:layout_marginBottom="12dp"/>
 
+        <!-- Primary action row: FIGHT | MAGIC | EVADE -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal">
-            
+
             <Button
                 android:id="@+id/btn_fight"
                 android:layout_width="0dp"
@@ -143,7 +201,7 @@
                 android:text="FIGHT"
                 android:backgroundTint="#B71C1C"
                 android:layout_marginEnd="4dp"/>
-                
+
             <Button
                 android:id="@+id/btn_magic"
                 android:layout_width="0dp"
@@ -174,16 +232,17 @@
                     android:progressTint="#FFFFFF"
                     android:progressBackgroundTint="@android:color/transparent"
                     android:visibility="invisible"
-                    android:max="100" />
+                    android:max="100"/>
             </FrameLayout>
         </LinearLayout>
 
+        <!-- Secondary action row: ITEM | RUN -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:layout_marginTop="8dp">
-            
+
             <Button
                 android:id="@+id/btn_item"
                 android:layout_width="0dp"
@@ -192,7 +251,7 @@
                 android:text="ITEM"
                 android:backgroundTint="#1B5E20"
                 android:layout_marginEnd="4dp"/>
-                
+
             <Button
                 android:id="@+id/btn_run"
                 android:layout_width="0dp"
@@ -202,4 +261,5 @@
                 android:backgroundTint="#E65100"/>
         </LinearLayout>
     </LinearLayout>
+
 </FrameLayout>
