@@ -16,7 +16,7 @@
 
 namespace LostDungeons {
 
-    enum class RenderState { OVERWORLD, BATTLE };
+    enum class RenderState { OVERWORLD, BATTLE, MENU };
 
     class GLRenderer {
     public:
@@ -26,6 +26,7 @@ namespace LostDungeons {
         static void setGameState(int state, const std::string& entityId);
         static void updateInput(float moveX, float moveY, float lookX, float lookY);
         static void toggleCompassMode();
+        static void handleTap(float screenX, float screenY);
 
     private:
         static void renderLoop(ANativeWindow* window);
@@ -41,8 +42,8 @@ namespace LostDungeons {
         static void drawOverworldFloor();
         static void drawEntityCube();
         
-        // Corrected declaration to match the implementation in gl_renderer.cpp
         static void drawCompassHUD(float engineTime);
+        static void drawMenuOverlay();
 
         static std::atomic<bool> isRendering;
         static std::thread renderThread;
