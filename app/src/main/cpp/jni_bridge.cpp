@@ -71,6 +71,14 @@ Java_com_dungeon_engine_SimulationController_nativeUpdateInput(
     LostDungeons::GLRenderer::updateInput(moveX, moveY, lookX, lookY);
 }
 
+// UI Hook: Toggle Compass Orientation Mode
+extern "C" JNIEXPORT void JNICALL
+Java_com_dungeon_engine_SimulationController_nativeToggleCompass(
+        JNIEnv* env, jobject /* this */) {
+    
+    LostDungeons::GLRenderer::toggleCompassMode();
+}
+
 // Phase 0: Legacy Simulation Loop
 extern "C" JNIEXPORT jintArray JNICALL
 Java_com_dungeon_engine_SimulationController_nativeRunSimulation(
