@@ -25,6 +25,7 @@ namespace LostDungeons {
         static void setViewport(int w, int h);
         static void setGameState(int state, const std::string& entityId);
         static void updateInput(float moveX, float moveY, float lookX, float lookY);
+        static void toggleCompassMode();
 
     private:
         static void renderLoop(ANativeWindow* window);
@@ -34,12 +35,12 @@ namespace LostDungeons {
         static GLuint loadShader(GLenum type, const char* src);
         static void drawFrame();
         
-        // Persistent World Generation Methods
         static void updateTerrainMesh();
         static float getTerrainHeight(float worldX, float worldZ);
         
         static void drawOverworldFloor();
         static void drawEntityCube();
+        static void drawCompassHUD();
 
         static std::atomic<bool> isRendering;
         static std::thread renderThread;
@@ -49,27 +50,34 @@ namespace LostDungeons {
         static EGLSurface surface;
         static EGLContext context;
         static GLuint shaderProgram;
+        static GLuint uiShaderProgram;
 
         static GLint mvpLoc, modelLoc, timeLoc, camPosLoc;
         static GLint lightDirLoc, lightColLoc, ambColLoc;
         static GLint skyTopLoc, skyBotLoc;
+        static GLint uiMvpLoc;
 
         static int width;
         static int height;
 
-        // Camera State
+        // Active Camera State
         static glm::vec3 cameraPos;
         static glm::vec3 cameraFront;
         static glm::vec3 cameraUp;
         static float yaw;
         static float pitch;
 
+        // Cached Overworld State (Fixes orientation snapping post-battle)
+        static glm::vec3 savedOverworldPos;
+        static float savedOverworldYaw;
+        static float savedOverworldPitch;
+
         static RenderState currentState;
         static std::string activeEntity;
+        static bool compassLockedToNorth;
 
         static std::chrono::time_point<std::chrono::steady_clock> startTime;
         
-        // Geometry Tracking
         static std::vector<GLfloat> terrainVertices;
         static std::vector<GLuint> terrainIndices;
         static int lastGridX;
