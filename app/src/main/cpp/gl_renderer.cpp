@@ -55,22 +55,33 @@ namespace LostDungeons {
         compassLockedToNorth = !compassLockedToNorth;
     }
 
+    void GLRenderer::handleTap(float screenX, float screenY) {
+        // Touch target check for compass interaction (Center 120,120 with 75px hit radius)
+        float dx = screenX - 120.0f;
+        float dy = screenY - 120.0f;
+        if (std::sqrt(dx*dx + dy*dy) <= 75.0f) {
+            toggleCompassMode();
+        }
+    }
+
     void GLRenderer::setGameState(int state, const std::string& entityId) {
         std::lock_guard<std::mutex> lock(stateMutex);
         RenderState newState = static_cast<RenderState>(state);
         
         if (newState == currentState) return; 
 
-        if (newState == RenderState::BATTLE) {
+        // If leaving overworld, safely cache the exact viewport location
+        if (currentState == RenderState::OVERWORLD) {
             savedOverworldPos = cameraPos;
             savedOverworldYaw = yaw;
             savedOverworldPitch = pitch;
+        }
 
+        if (newState == RenderState::BATTLE) {
             cameraPos = glm::vec3(0.0f, getTerrainHeight(0.0f, 0.0f) + 1.5f, 4.0f); 
             yaw = -90.0f;
             pitch = 0.0f;
             cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
-            
         } else if (newState == RenderState::OVERWORLD) {
             cameraPos = savedOverworldPos;
             yaw = savedOverworldYaw;
@@ -126,8 +137,9 @@ namespace LostDungeons {
         terrainVertices.clear();
         terrainIndices.clear();
 
-        int gridSize = 160; 
-        float spacing = 2.0f;
+        // Expansive 600m Render Distance (240 Grid * 2.5 Spacing)
+        int gridSize = 240; 
+        float spacing = 2.5f;
 
         int camX = (int)floor(cameraPos.x);
         int camZ = (int)floor(cameraPos.z);
@@ -297,12 +309,16 @@ namespace LostDungeons {
         auto now = std::chrono::steady_clock::now();
         float engineTime = std::chrono::duration<float>(now - startTime).count();
 
-        float cycle = sin(engineTime * 0.1f);
+        // 3000 Seconds Total (25 Min Day, 25 Min Night)
+        float timeOfDayAngle = (engineTime / 3000.0f) * 3.14159265f * 2.0f;
+        float cycle = sin(timeOfDayAngle);
         bool isDay = cycle > 0.0f;
 
         glm::vec3 skyTop = isDay ? glm::vec3(0.1f, 0.4f, 0.8f) : glm::vec3(0.01f, 0.02f, 0.1f);
         glm::vec3 skyBot = isDay ? glm::vec3(0.6f, 0.8f, 0.9f) : glm::vec3(0.0f, 0.0f, 0.05f);
-        glm::vec3 lightDir = glm::vec3(cos(engineTime*0.1f), sin(engineTime*0.1f), 0.5f);
+        
+        // Realistic sweeping sun vector
+        glm::vec3 lightDir = glm::vec3(cos(timeOfDayAngle), sin(timeOfDayAngle), 0.5f);
         glm::vec3 lightCol = isDay ? glm::vec3(1.0f, 0.9f, 0.8f) : glm::vec3(0.2f, 0.3f, 0.6f); 
         glm::vec3 ambCol = isDay ? glm::vec3(0.3f, 0.3f, 0.3f) : glm::vec3(0.05f, 0.05f, 0.1f);
 
@@ -330,9 +346,11 @@ namespace LostDungeons {
         glUniform3fv(camPosLoc, 1, glm::value_ptr(cameraPos));
 
         float aspect = (float)width / (float)(height > 0 ? height : 1);
-        glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 400.0f); 
+        
+        // Corrected FOV (65 degrees) and pushed Render Distance (1000m)
+        glm::mat4 projection = glm::perspective(glm::radians(65.0f), aspect, 0.1f, 1000.0f); 
 
-        glm::vec3 lookTarget = (currentState == RenderState::OVERWORLD) ? 
+        glm::vec3 lookTarget = (currentState == RenderState::OVERWORLD || currentState == RenderState::MENU) ? 
                                (cameraPos + cameraFront) : glm::vec3(0.0f, getTerrainHeight(0.f, 0.f) + 0.5f, 0.0f);
 
         glm::mat4 view = glm::lookAt(cameraPos, lookTarget, cameraUp);
@@ -342,11 +360,16 @@ namespace LostDungeons {
         glUniformMatrix4fv(mvpLoc, 1, GL_FALSE, glm::value_ptr(mvp));
         glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
 
-        if (currentState == RenderState::OVERWORLD) {
+        if (currentState == RenderState::OVERWORLD || currentState == RenderState::MENU) {
             drawOverworldFloor();
             drawCompassHUD(engineTime); 
         } else {
             drawEntityCube();
+        }
+
+        // Draw HUD overlay to support readable text on the Kotlin side
+        if (currentState == RenderState::MENU) {
+            drawMenuOverlay();
         }
     }
 
@@ -398,30 +421,22 @@ namespace LostDungeons {
         static std::vector<GLuint> compIndices;
         static bool initCompassMesh = false;
 
-        // Procedural Star and Ring Generation (Cached after frame 1)
         if (!initCompassMesh) {
-            compVerts.insert(compVerts.end(), {0.0f, 0.0f, 0.8f, 0.8f, 0.8f, 1.0f}); // Center Vertex
+            compVerts.insert(compVerts.end(), {0.0f, 0.0f, 0.8f, 0.8f, 0.8f, 1.0f}); 
             
             const float PI = 3.14159265359f;
             int ringSegments = 36;
             float ringRadius = 1.0f;
             float ringInnerRadius = 0.85f;
 
-            // 1. Eight-Pointed Star (16 Outer Vertices)
             for (int i = 0; i < 16; ++i) {
-                float angle = i * (PI * 2.0f / 16.0f) - (PI / 2.0f); // Top is North (-90 deg in 2D)
+                float angle = i * (PI * 2.0f / 16.0f) - (PI / 2.0f); 
                 
                 float radius; float r, g, b;
-                
-                if (i == 0) { // North Tip (Red)
-                    radius = 0.8f; r = 0.9f; g = 0.1f; b = 0.1f; 
-                } else if (i % 4 == 0) { // East, South, West Tips (Light Grey)
-                    radius = 0.8f; r = 0.8f; g = 0.8f; b = 0.8f;
-                } else if (i % 2 == 0) { // Ordinal Tips: NE, SE, SW, NW (Mid Grey)
-                    radius = 0.5f; r = 0.6f; g = 0.6f; b = 0.6f;
-                } else { // Inner Valleys (Dark Grey)
-                    radius = 0.2f; r = 0.2f; g = 0.2f; b = 0.2f;
-                }
+                if (i == 0) { radius = 0.8f; r = 0.9f; g = 0.1f; b = 0.1f; }
+                else if (i % 4 == 0) { radius = 0.8f; r = 0.8f; g = 0.8f; b = 0.8f; } 
+                else if (i % 2 == 0) { radius = 0.5f; r = 0.6f; g = 0.6f; b = 0.6f; }
+                else { radius = 0.2f; r = 0.2f; g = 0.2f; b = 0.2f; }
 
                 compVerts.insert(compVerts.end(), {
                     cos(angle) * radius, sin(angle) * radius, r, g, b, 1.0f
@@ -433,16 +448,12 @@ namespace LostDungeons {
                 compIndices.insert(compIndices.end(), {0, (GLuint)i, (GLuint)next});
             }
 
-            // 2. Brass Enclosure Ring
             int ringStartIdx = compVerts.size() / 6;
             for (int i = 0; i <= ringSegments; ++i) {
                 float angle = i * (PI * 2.0f / ringSegments);
-                
-                // Inner Edge (Dark Brass)
                 compVerts.insert(compVerts.end(), {
                     cos(angle) * ringInnerRadius, sin(angle) * ringInnerRadius, 0.6f, 0.5f, 0.1f, 1.0f
                 });
-                // Outer Edge (Bright Brass)
                 compVerts.insert(compVerts.end(), {
                     cos(angle) * ringRadius, sin(angle) * ringRadius, 0.9f, 0.8f, 0.2f, 1.0f
                 });
@@ -455,8 +466,7 @@ namespace LostDungeons {
                 GLuint outer2 = inner1 + 3;
 
                 compIndices.insert(compIndices.end(), {
-                    inner1, outer1, inner2,
-                    outer1, outer2, inner2
+                    inner1, outer1, inner2, outer1, outer2, inner2
                 });
             }
             initCompassMesh = true;
@@ -466,46 +476,94 @@ namespace LostDungeons {
         glUseProgram(uiShaderProgram);
 
         glm::mat4 projection = glm::ortho(0.0f, (float)width, (float)height, 0.0f, -1.0f, 1.0f);
-        glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(120.0f, 120.0f, 0.0f));
+        glm::mat4 baseCompassModel = glm::translate(glm::mat4(1.0f), glm::vec3(120.0f, 120.0f, 0.0f));
 
-        // --- Realistic Spring Physics Simulation ---
         float targetAngle = compassLockedToNorth ? 0.0f : glm::radians(yaw + 90.0f);
         
         float dt = engineTime - lastFrameTime;
         if (dt > 0.0f) {
-            if (dt > 0.1f) dt = 0.1f; // Prevent explosive physics jumps if frame drops
-            
+            if (dt > 0.1f) dt = 0.1f;
             float diff = targetAngle - currentCompassAngle;
-            
-            // Normalize difference to ensure it always rotates the shortest direction
             while (diff > M_PI) diff -= 2.0f * M_PI;
             while (diff < -M_PI) diff += 2.0f * M_PI;
-            
             float springTension = 30.0f;
             float damping = 3.5f;
-            
             compassVelocity += (diff * springTension - compassVelocity * damping) * dt;
             currentCompassAngle += compassVelocity * dt;
             lastFrameTime = engineTime;
         }
 
-        // Apply a high-frequency tremor to the needle based on its rotational velocity
         float wobble = sin(engineTime * 35.0f) * 0.015f * std::min(std::abs(compassVelocity), 3.0f);
         float finalAngle = currentCompassAngle + wobble;
 
-        model = glm::rotate(model, finalAngle, glm::vec3(0.0f, 0.0f, 1.0f));
-        model = glm::scale(model, glm::vec3(60.0f, 60.0f, 1.0f)); // Slightly larger to show off the details
+        // 1. Draw Needle and Enclosure
+        glm::mat4 needleModel = glm::rotate(baseCompassModel, finalAngle, glm::vec3(0.0f, 0.0f, 1.0f));
+        needleModel = glm::scale(needleModel, glm::vec3(60.0f, 60.0f, 1.0f)); 
 
-        glm::mat4 mvp = projection * model;
+        glm::mat4 mvp = projection * needleModel;
         glUniformMatrix4fv(uiMvpLoc, 1, GL_FALSE, glm::value_ptr(mvp));
 
         glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), compVerts.data());
         glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), compVerts.data() + 2);
         glEnableVertexAttribArray(0);
         glEnableVertexAttribArray(1);
-
         glDrawElements(GL_TRIANGLES, compIndices.size(), GL_UNSIGNED_INT, compIndices.data());
 
+        // 2. Draw Orbiting Clock System
+        float timeOfDayAngle = (engineTime / 3000.0f) * 3.14159265f * 2.0f;
+        
+        // Track the outer rim of the compass (radius = 78 pixels relative to center)
+        float sunX = cos(timeOfDayAngle) * 78.0f;
+        float sunY = -sin(timeOfDayAngle) * 78.0f; // -sin maps noon to top
+
+        glm::mat4 clockModel = glm::translate(baseCompassModel, glm::vec3(sunX, sunY, 0.0f));
+        clockModel = glm::scale(clockModel, glm::vec3(12.0f, 12.0f, 1.0f));
+        glm::mat4 clockMvp = projection * clockModel;
+        glUniformMatrix4fv(uiMvpLoc, 1, GL_FALSE, glm::value_ptr(clockMvp));
+
+        GLfloat clockVerts[] = {
+             0.0f, -1.0f,  1.0f, 0.9f, 0.2f, 1.0f, // Sun Diamond
+            -1.0f,  0.0f,  1.0f, 0.8f, 0.1f, 1.0f,
+             1.0f,  0.0f,  1.0f, 0.8f, 0.1f, 1.0f,
+             0.0f,  1.0f,  1.0f, 0.9f, 0.2f, 1.0f
+        };
+        GLuint clockInds[] = { 0, 1, 2, 1, 3, 2 };
+
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), clockVerts);
+        glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), clockVerts + 2);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, clockInds);
+
+        glEnable(GL_DEPTH_TEST);
+    }
+
+    void GLRenderer::drawMenuOverlay() {
+        if (!uiShaderProgram) return;
+        
+        glDisable(GL_DEPTH_TEST);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glUseProgram(uiShaderProgram);
+
+        glm::mat4 projection = glm::ortho(0.0f, (float)width, (float)height, 0.0f, -1.0f, 1.0f);
+        glUniformMatrix4fv(uiMvpLoc, 1, GL_FALSE, glm::value_ptr(projection));
+
+        // Draw a 70% opacity black bounding quad to dim the 3D scene
+        GLfloat vertices[] = {
+            0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.7f,
+            (float)width, 0.0f, 0.0f, 0.0f, 0.0f, 0.7f,
+            0.0f, (float)height, 0.0f, 0.0f, 0.0f, 0.7f,
+            (float)width, (float)height, 0.0f, 0.0f, 0.0f, 0.7f
+        };
+        GLuint indices[] = {0, 1, 2, 1, 3, 2};
+
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), vertices);
+        glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), vertices + 2);
+        glEnableVertexAttribArray(0);
+        glEnableVertexAttribArray(1);
+
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, indices);
+
+        glDisable(GL_BLEND);
         glEnable(GL_DEPTH_TEST);
     }
 }
