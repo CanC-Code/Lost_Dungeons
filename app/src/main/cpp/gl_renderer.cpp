@@ -14,44 +14,74 @@ namespace LostDungeons {
     EGLSurface GLRenderer::surface = EGL_NO_SURFACE;
     EGLContext GLRenderer::context = EGL_NO_CONTEXT;
     GLuint GLRenderer::shaderProgram = 0;
+    GLuint GLRenderer::uiShaderProgram = 0;
 
     GLint GLRenderer::mvpLoc = -1, GLRenderer::modelLoc = -1, GLRenderer::timeLoc = -1;
     GLint GLRenderer::camPosLoc = -1, GLRenderer::lightDirLoc = -1, GLRenderer::lightColLoc = -1;
     GLint GLRenderer::ambColLoc = -1, GLRenderer::skyTopLoc = -1, GLRenderer::skyBotLoc = -1;
+    GLint GLRenderer::uiMvpLoc = -1;
 
     int GLRenderer::width = 0;
     int GLRenderer::height = 0;
 
-    glm::vec3 GLRenderer::cameraPos = glm::vec3(0.0f, 2.0f, 5.0f);
+    glm::vec3 GLRenderer::cameraPos = glm::vec3(0.0f, 1.7f, 5.0f); // 1.7m Eye Level
     glm::vec3 GLRenderer::cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
     glm::vec3 GLRenderer::cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
     float GLRenderer::yaw = -90.0f;
     float GLRenderer::pitch = 0.0f;
 
+    // Default Cache States
+    glm::vec3 GLRenderer::savedOverworldPos = glm::vec3(0.0f, 1.7f, 5.0f);
+    float GLRenderer::savedOverworldYaw = -90.0f;
+    float GLRenderer::savedOverworldPitch = 0.0f;
+
     RenderState GLRenderer::currentState = RenderState::OVERWORLD;
     std::string GLRenderer::activeEntity = "";
+    bool GLRenderer::compassLockedToNorth = false;
 
     std::chrono::time_point<std::chrono::steady_clock> GLRenderer::startTime;
     std::vector<GLfloat> GLRenderer::terrainVertices;
     std::vector<GLuint> GLRenderer::terrainIndices;
     
-    // Initialize out of bounds to force a generation on frame 1
     int GLRenderer::lastGridX = -9999;
     int GLRenderer::lastGridZ = -9999;
 
+    void GLRenderer::toggleCompassMode() {
+        compassLockedToNorth = !compassLockedToNorth;
+    }
+
     void GLRenderer::setGameState(int state, const std::string& entityId) {
         std::lock_guard<std::mutex> lock(stateMutex);
-        currentState = static_cast<RenderState>(state);
-        activeEntity = entityId;
+        RenderState newState = static_cast<RenderState>(state);
+        
+        if (newState == currentState) return; 
 
-        if (currentState == RenderState::OVERWORLD) {
-            cameraPos.y = getTerrainHeight(cameraPos.x, cameraPos.z) + 2.5f; 
-        } else {
+        if (newState == RenderState::BATTLE) {
+            // Save precise overworld geometry and looking angles
+            savedOverworldPos = cameraPos;
+            savedOverworldYaw = yaw;
+            savedOverworldPitch = pitch;
+
             cameraPos = glm::vec3(0.0f, getTerrainHeight(0.0f, 0.0f) + 1.5f, 4.0f); 
             yaw = -90.0f;
             pitch = 0.0f;
             cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
+            
+        } else if (newState == RenderState::OVERWORLD) {
+            // Seamlessly restore exact previous FOV and orientation
+            cameraPos = savedOverworldPos;
+            yaw = savedOverworldYaw;
+            pitch = savedOverworldPitch;
+
+            glm::vec3 front;
+            front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+            front.y = sin(glm::radians(pitch));
+            front.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+            cameraFront = glm::normalize(front);
         }
+        
+        currentState = newState;
+        activeEntity = entityId;
     }
 
     void GLRenderer::updateInput(float moveX, float moveY, float lookX, float lookY) {
@@ -70,33 +100,32 @@ namespace LostDungeons {
         cameraFront = glm::normalize(front);
 
         glm::vec3 right = glm::normalize(glm::cross(cameraFront, cameraUp));
-        
-        // Flatten movement vector to prevent "flying" into the air on pitch up
         glm::vec3 flatFront = glm::normalize(glm::vec3(cameraFront.x, 0.0f, cameraFront.z));
         
-        cameraPos += flatFront * moveY * 0.2f;
-        cameraPos += right * moveX * 0.2f;
+        // Scaled to realistic 1m:1m movement (~6 meters per second walk)
+        cameraPos += flatFront * moveY * 0.1f;
+        cameraPos += right * moveX * 0.1f;
         
-        // Dynamically anchor camera to the procedural geometry height
-        cameraPos.y = getTerrainHeight(cameraPos.x, cameraPos.z) + 2.5f;
+        // Average human eye height of 1.7 meters
+        cameraPos.y = getTerrainHeight(cameraPos.x, cameraPos.z) + 1.7f;
     }
 
-    // Mathematical World Generation Laws
+    // 1m:1m Realistic Procedural Topography 
     float GLRenderer::getTerrainHeight(float worldX, float worldZ) {
         float y = 0.0f;
         
-        // Macro Features (Mountains up to 12 units high)
-        y += sin(worldX * 0.05f) * cos(worldZ * 0.05f) * 12.0f;
+        // Mountains (Spanning massive distances, peaking at 60m height)
+        y += sin(worldX * 0.008f) * cos(worldZ * 0.008f) * 60.0f;
         
-        // Mid Features (Hills)
-        y += sin(worldX * 0.15f + worldZ * 0.2f) * 4.0f;
+        // Rolling Hills (Broader, up to 12m high)
+        y += sin(worldX * 0.03f + worldZ * 0.02f) * 12.0f;
         
-        // Micro Features (Ground texture bumps)
-        y += sin(worldX * 0.4f - worldZ * 0.3f) * 1.0f;
+        // Ground Noise (~0.5m bumps for texture)
+        y += sin(worldX * 0.2f - worldZ * 0.2f) * 0.5f;
         
-        // World shaping: flatten out deep valleys to create traversable plains
-        if (y < 2.0f) {
-            y = 2.0f + (y - 2.0f) * 0.2f;
+        // Broad Plains Flattening
+        if (y < 5.0f) {
+            y = 5.0f + (y - 5.0f) * 0.15f;
         }
         return y;
     }
@@ -105,9 +134,9 @@ namespace LostDungeons {
         terrainVertices.clear();
         terrainIndices.clear();
 
-        // Expansive 140x140 quad grid ensures edges pass safely behind the shader fog wall
-        int gridSize = 140; 
-        float spacing = 1.0f;
+        // 160 Grid * 2.0 Spacing = 320x320 Meter Draw Area 
+        int gridSize = 160; 
+        float spacing = 2.0f;
 
         int camX = (int)floor(cameraPos.x);
         int camZ = (int)floor(cameraPos.z);
@@ -117,19 +146,15 @@ namespace LostDungeons {
                 float fx = x * spacing;
                 float fz = z * spacing;
                 
-                // Map local vertices to absolute world coordinates
                 float worldX = camX + fx;
                 float worldZ = camZ + fz;
-
                 float fy = getTerrainHeight(worldX, worldZ);
 
-                // Procedural biomes based on absolute elevation
                 float r, g, b;
-                if (fy < 2.8f) { r = 0.2f; g = 0.5f; b = 0.2f; }       // Lowland Grass
-                else if (fy < 7.0f) { r = 0.45f; g = 0.35f; b = 0.2f; } // Dirt / Rock
-                else { r = 0.9f; g = 0.9f; b = 0.95f; }                // High Altitude Snow
+                if (fy < 6.0f) { r = 0.2f; g = 0.5f; b = 0.2f; }       // Plains
+                else if (fy < 25.0f) { r = 0.45f; g = 0.35f; b = 0.2f; } // Foothills / Rock
+                else { r = 0.9f; g = 0.9f; b = 0.95f; }                // Snowcaps
 
-                // Add slight organic color noise 
                 float colorNoise = (sin(worldX * 2.0f) * cos(worldZ * 2.0f)) * 0.05f;
                 r += colorNoise; g += colorNoise; b += colorNoise;
 
@@ -209,6 +234,7 @@ namespace LostDungeons {
             eglTerminate(display); display = EGL_NO_DISPLAY;
         }
         if (shaderProgram != 0) { glDeleteProgram(shaderProgram); shaderProgram = 0; }
+        if (uiShaderProgram != 0) { glDeleteProgram(uiShaderProgram); uiShaderProgram = 0; }
     }
 
     GLuint GLRenderer::loadShader(GLenum type, const char* src) {
@@ -223,14 +249,14 @@ namespace LostDungeons {
     }
 
     void GLRenderer::setupGraphics() {
+        // Core 3D Shaders
         std::string vertSrc = AssetManager::loadTextFile("shaders/base.vert");
         std::string fragSrc = AssetManager::loadTextFile("shaders/base.frag");
         if (vertSrc.empty() || fragSrc.empty()) return;
 
         GLuint vs = loadShader(GL_VERTEX_SHADER, vertSrc.c_str());
         GLuint fs = loadShader(GL_FRAGMENT_SHADER, fragSrc.c_str());
-        if (!vs || !fs) return;
-
+        
         shaderProgram = glCreateProgram();
         glAttachShader(shaderProgram, vs);
         glAttachShader(shaderProgram, fs);
@@ -245,6 +271,33 @@ namespace LostDungeons {
         ambColLoc = glGetUniformLocation(shaderProgram, "u_AmbientColor");
         skyTopLoc = glGetUniformLocation(shaderProgram, "u_SkyColorTop");
         skyBotLoc = glGetUniformLocation(shaderProgram, "u_SkyColorBottom");
+
+        // UI Orthographic Compass Shaders (Embedded to bypass file I/O constraints)
+        const char* uiVertSrc = R"(#version 300 es
+            layout(location = 0) in vec2 a_Position;
+            layout(location = 1) in vec4 a_Color;
+            uniform mat4 u_MVP;
+            out vec4 v_Color;
+            void main() {
+                gl_Position = u_MVP * vec4(a_Position, 0.0, 1.0);
+                v_Color = a_Color;
+            })";
+
+        const char* uiFragSrc = R"(#version 300 es
+            precision mediump float;
+            in vec4 v_Color;
+            out vec4 FragColor;
+            void main() { FragColor = v_Color; })";
+
+        GLuint uiVs = loadShader(GL_VERTEX_SHADER, uiVertSrc);
+        GLuint uiFs = loadShader(GL_FRAGMENT_SHADER, uiFragSrc);
+        
+        uiShaderProgram = glCreateProgram();
+        glAttachShader(uiShaderProgram, uiVs);
+        glAttachShader(uiShaderProgram, uiFs);
+        glLinkProgram(uiShaderProgram);
+        
+        uiMvpLoc = glGetUniformLocation(uiShaderProgram, "u_MVP");
 
         glEnable(GL_DEPTH_TEST);
     }
@@ -271,7 +324,6 @@ namespace LostDungeons {
         glUseProgram(shaderProgram);
         std::lock_guard<std::mutex> lock(stateMutex);
 
-        // Seamless Geometry Chunking: Only reconstruct the mesh when crossing a world-unit integer boundary
         int currentGridX = (int)floor(cameraPos.x);
         int currentGridZ = (int)floor(cameraPos.z);
         if (currentGridX != lastGridX || currentGridZ != lastGridZ) {
@@ -289,7 +341,7 @@ namespace LostDungeons {
         glUniform3fv(camPosLoc, 1, glm::value_ptr(cameraPos));
 
         float aspect = (float)width / (float)(height > 0 ? height : 1);
-        glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 150.0f);
+        glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 400.0f); // Pushed Far Plane
 
         glm::vec3 lookTarget = (currentState == RenderState::OVERWORLD) ? 
                                (cameraPos + cameraFront) : glm::vec3(0.0f, getTerrainHeight(0.f, 0.f) + 0.5f, 0.0f);
@@ -303,6 +355,7 @@ namespace LostDungeons {
 
         if (currentState == RenderState::OVERWORLD) {
             drawOverworldFloor();
+            drawCompassHUD(); // Render HUD on top
         } else {
             drawEntityCube();
         }
@@ -336,7 +389,6 @@ namespace LostDungeons {
         };
         GLuint indices[] = { 0, 1, 2,  1, 4, 2,  4, 3, 2,  3, 0, 2 };
 
-        // Ensure the monster sits physically flush upon the procedural geometry 
         float entityY = getTerrainHeight(0.0f, 0.0f) + 0.0f;
         glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, entityY, 0.0f));
         glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
@@ -348,5 +400,46 @@ namespace LostDungeons {
         glEnableVertexAttribArray(1);
         glEnableVertexAttribArray(2);
         glDrawElements(GL_TRIANGLES, 12, GL_UNSIGNED_INT, indices);
+    }
+
+    void GLRenderer::drawCompassHUD() {
+        if (!uiShaderProgram) return;
+
+        // Strip back 3D states to draw flat 2D HUD element
+        glDisable(GL_DEPTH_TEST);
+        glUseProgram(uiShaderProgram);
+
+        glm::mat4 projection = glm::ortho(0.0f, (float)width, (float)height, 0.0f, -1.0f, 1.0f);
+        glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(100.0f, 100.0f, 0.0f));
+
+        // -Z is mathematically North. Yaw of -90 faces North.
+        float compassAngle = 0.0f;
+        if (!compassLockedToNorth) {
+            compassAngle = glm::radians(yaw + 90.0f); // Spin relative to FOV
+        }
+
+        model = glm::rotate(model, compassAngle, glm::vec3(0.0f, 0.0f, 1.0f));
+        model = glm::scale(model, glm::vec3(40.0f, 40.0f, 1.0f)); 
+
+        glm::mat4 mvp = projection * model;
+        glUniformMatrix4fv(uiMvpLoc, 1, GL_FALSE, glm::value_ptr(mvp));
+
+        // Diamond Pointer Mesh: Top is Red (North), Bottom is Grey (South)
+        GLfloat vertices[] = {
+             0.0f, -1.0f,   1.0f, 0.1f, 0.1f, 1.0f, // North Tip
+            -0.4f,  0.0f,   0.7f, 0.7f, 0.7f, 1.0f, // Left Anchor
+             0.4f,  0.0f,   0.5f, 0.5f, 0.5f, 1.0f, // Right Anchor
+             0.0f,  1.0f,   0.9f, 0.9f, 0.9f, 1.0f  // South Tip
+        };
+        GLuint indices[] = { 0, 1, 2,  1, 3, 2 };
+
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), vertices);
+        glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), vertices + 2);
+        glEnableVertexAttribArray(0);
+        glEnableVertexAttribArray(1);
+
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, indices);
+
+        glEnable(GL_DEPTH_TEST); // Re-arm depth tests for the next 3D frame
     }
 }
