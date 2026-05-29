@@ -67,14 +67,19 @@ namespace LostDungeons {
         static float yaw;
         static float pitch;
 
-        // Cached Overworld State (Fixes orientation snapping post-battle)
+        // Cached Overworld State
         static glm::vec3 savedOverworldPos;
         static float savedOverworldYaw;
         static float savedOverworldPitch;
 
         static RenderState currentState;
         static std::string activeEntity;
+        
+        // Physics-Based Compass State
         static bool compassLockedToNorth;
+        static float currentCompassAngle;
+        static float compassVelocity;
+        static float lastFrameTime;
 
         static std::chrono::time_point<std::chrono::steady_clock> startTime;
         
