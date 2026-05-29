@@ -3,10 +3,13 @@ package com.dungeon.engine
 import android.content.res.AssetManager
 import android.view.Surface
 
-object SimulationController {
-    init {
-        // Loads the CMake compiled C++ library (libengine.so)
-        System.loadLibrary("engine")
+class SimulationController {
+    
+    companion object {
+        init {
+            // Loads the CMake compiled C++ library exactly once
+            System.loadLibrary("engine")
+        }
     }
 
     // --- Lifecycle & Assets ---
